@@ -1,0 +1,33 @@
+const express = require('express');
+const router = express.Router();
+
+const authRoutes = require('./auth.routes');
+const academyRoutes = require('./academy.routes');
+const playerRoutes = require('./player.routes');
+const scoutRoutes = require('./scout.routes');
+const videoRoutes = require('./video.routes');
+const matchRoutes = require('./match.routes');
+const adminRoutes = require('./admin.routes');
+const messageRoutes = require('./message.routes');
+
+// Mount routes
+router.use('/auth', authRoutes);
+router.use('/academies', academyRoutes);
+router.use('/players', playerRoutes);
+router.use('/scouts', scoutRoutes);
+router.use('/videos', videoRoutes);
+router.use('/matches', matchRoutes);
+router.use('/admin', adminRoutes);
+router.use('/messages', messageRoutes);
+
+// Health check
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'GoalConnect API is running',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+module.exports = router;
+
