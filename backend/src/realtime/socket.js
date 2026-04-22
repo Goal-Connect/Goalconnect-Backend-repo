@@ -127,7 +127,18 @@ const initSocket = (httpServer) => {
           content: content.trim(),
         });
 
-        const safeMessage = message.toObject();
+        // ── Critical: serialize all ObjectIds to plain strings before emitting ──
+        // Mongoose ObjectId objects do NOT reliably equal plain strings with ===
+        // on the client, even if their string value is the same.
+        const safeMessage = {
+          _id:        message._id.toString(),
+          senderId:   message.senderId.toString(),
+          receiverId: message.receiverId.toString(),
+          content:    message.content,
+          isRead:     message.isRead,
+          createdAt:  message.createdAt,
+          updatedAt:  message.updatedAt,
+        };
 
         // Acknowledge to sender
         if (callback) {
@@ -145,6 +156,7 @@ const initSocket = (httpServer) => {
         }
       }
     });
+
 
     // Fetch conversation history between current user and another user
     socket.on('conversation:history', async (payload, callback) => {
@@ -167,10 +179,109 @@ const initSocket = (httpServer) => {
           .limit(Number(limit) || 50)
           .lean();
 
-        callback?.({ success: true, data: messages });
+        // Serialize ObjectIds to plain strings so client === comparisons work
+        const safeMessages = messages.map((m) => ({
+          _id:        m._id.toString(),
+          senderId:   m.senderId.toString(),
+          receiverId: m.receiverId.toString(),
+          content:    m.content,
+          isRead:     m.isRead,
+          createdAt:  m.createdAt,
+          updatedAt:  m.updatedAt,
+        }));
+
+        callback?.({ success: true, data: safeMessages });
       } catch (err) {
         console.error('conversation:history error:', err);
         callback?.({ success: false, error: 'Server error fetching history' });
+      }
+    });
+
+
+    // ── Edit a message ──────────────────────────────────────────────────────
+    // payload: { messageId, newContent }
+    socket.on('message:edit', async (payload, callback) => {
+      try {
+        const { messageId, newContent } = payload || {};
+
+        if (!messageId || !newContent?.trim()) {
+          return callback?.({ success: false, error: 'messageId and newContent are required' });
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+          return callback?.({ success: false, error: 'Message not found' });
+        }
+
+        // Only the original sender can edit
+        if (message.senderId.toString() !== userId) {
+          return callback?.({ success: false, error: 'You can only edit your own messages' });
+        }
+
+        message.content = newContent.trim();
+        await message.save();
+
+        const safeMessage = {
+          _id:        message._id.toString(),
+          senderId:   message.senderId.toString(),
+          receiverId: message.receiverId.toString(),
+          content:    message.content,
+          isRead:     message.isRead,
+          edited:     true,
+          createdAt:  message.createdAt,
+          updatedAt:  message.updatedAt,
+        };
+
+        // Acknowledge sender
+        callback?.({ success: true, data: safeMessage });
+
+        // Real-time update to the other participant
+        const otherId = message.receiverId.toString() === userId
+          ? message.senderId.toString()
+          : message.receiverId.toString();
+        emitToUser(otherId, 'message:edited', safeMessage);
+
+      } catch (err) {
+        console.error('message:edit error:', err);
+        callback?.({ success: false, error: 'Server error editing message' });
+      }
+    });
+
+    // ── Delete a message ────────────────────────────────────────────────────
+    // payload: { messageId }
+    socket.on('message:delete', async (payload, callback) => {
+      try {
+        const { messageId } = payload || {};
+
+        if (!messageId) {
+          return callback?.({ success: false, error: 'messageId is required' });
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+          return callback?.({ success: false, error: 'Message not found' });
+        }
+
+        // Only the original sender can delete
+        if (message.senderId.toString() !== userId) {
+          return callback?.({ success: false, error: 'You can only delete your own messages' });
+        }
+
+        const otherId = message.receiverId.toString() === userId
+          ? message.senderId.toString()
+          : message.receiverId.toString();
+
+        await Message.findByIdAndDelete(messageId);
+
+        // Acknowledge sender
+        callback?.({ success: true, data: { _id: messageId } });
+
+        // Real-time removal on the other participant's screen
+        emitToUser(otherId, 'message:deleted', { _id: messageId });
+
+      } catch (err) {
+        console.error('message:delete error:', err);
+        callback?.({ success: false, error: 'Server error deleting message' });
       }
     });
 
