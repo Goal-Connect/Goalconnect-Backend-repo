@@ -20,6 +20,16 @@ router.use('/matches', matchRoutes);
 router.use('/admin', adminRoutes);
 router.use('/messages', messageRoutes);
 
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check for the API
+ *     tags: [Misc]
+ *     responses:
+ *       200:
+ *         description: API is running
+ */
 // Health check
 router.get('/health', (req, res) => {
   res.status(200).json({

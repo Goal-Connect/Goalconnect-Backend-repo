@@ -93,19 +93,228 @@ const updatePlayerValidation = [
     .withMessage('Bio cannot exceed 500 characters'),
 ];
 
+/**
+ * @swagger
+ * tags:
+ *   name: Players
+ *   description: Player discovery and academy-managed players
+ */
+
+/**
+ * @swagger
+ * /players:
+ *   get:
+ *     summary: List players with filters
+ *     tags: [Players]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: position
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: strongFoot
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of players
+ */
 // Public routes
 router.get('/saved', protect, authorize('scout'), getSavedPlayers);
 router.get('/', optionalAuth, getPlayers);
+
+/**
+ * @swagger
+ * /players/{id}:
+ *   get:
+ *     summary: Get player by ID
+ *     tags: [Players]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Player ID
+ *     responses:
+ *       200:
+ *         description: Player details
+ *       404:
+ *         description: Player not found
+ */
 router.get('/:id', optionalAuth, getPlayer);
+
+/**
+ * @swagger
+ * /players/{id}/videos:
+ *   get:
+ *     summary: Get videos for a player
+ *     tags: [Players]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Player ID
+ *     responses:
+ *       200:
+ *         description: List of player videos
+ */
 router.get('/:id/videos', optionalAuth, getPlayerVideos);
 
+/**
+ * @swagger
+ * /players/{id}/save:
+ *   post:
+ *     summary: Save player to scout favorites
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Player ID
+ *     responses:
+ *       200:
+ *         description: Player saved
+ *       401:
+ *         description: Unauthorized
+ */
 // Scout save/unsave routes
 router.post('/:id/save', protect, authorize('scout'), savePlayer);
+
+/**
+ * @swagger
+ * /players/{id}/save:
+ *   delete:
+ *     summary: Remove player from scout favorites
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Player ID
+ *     responses:
+ *       200:
+ *         description: Player unsaved
+ *       401:
+ *         description: Unauthorized
+ */
 router.delete('/:id/save', protect, authorize('scout'), unsavePlayer);
 
+/**
+ * @swagger
+ * /players/saved:
+ *   get:
+ *     summary: Get players saved by current scout
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of saved players
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/saved', protect, authorize('scout'), getSavedPlayers);
+
+/**
+ * @swagger
+ * /players:
+ *   post:
+ *     summary: Create new player (academy only)
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       201:
+ *         description: Player created
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
 // Protected routes (Academy only)
 router.post('/', protect, authorize('academy'), requireApproved, createPlayerValidation, createPlayer);
+
+/**
+ * @swagger
+ * /players/{id}:
+ *   put:
+ *     summary: Update player (academy only)
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Player updated
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Player not found
+ */
 router.put('/:id', protect, authorize('academy'), updatePlayerValidation, updatePlayer);
+
+/**
+ * @swagger
+ * /players/{id}:
+ *   delete:
+ *     summary: Delete player (academy only)
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Player deleted
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Player not found
+ */
 router.delete('/:id', protect, authorize('academy'), deletePlayer);
 
 module.exports = router;

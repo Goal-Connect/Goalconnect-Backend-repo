@@ -96,19 +96,200 @@ const matchStatsValidation = [
     .withMessage('Rating must be between 1 and 10'),
 ];
 
+/**
+ * @swagger
+ * tags:
+ *   name: Matches
+ *   description: Academy matches and player statistics
+ */
+
 // All routes require authentication and academy role
 router.use(protect);
 router.use(authorize('academy'));
 
+/**
+ * @swagger
+ * /matches:
+ *   get:
+ *     summary: List matches for current academy
+ *     tags: [Matches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: matchType
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of matches
+ *       401:
+ *         description: Unauthorized
+ */
 // Match CRUD routes
 router.get('/', getMatches);
+
+/**
+ * @swagger
+ * /matches:
+ *   post:
+ *     summary: Create match
+ *     tags: [Matches]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       201:
+ *         description: Match created
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/', requireApproved, createMatchValidation, createMatch);
+
+/**
+ * @swagger
+ * /matches/{id}:
+ *   get:
+ *     summary: Get match details (with stats)
+ *     tags: [Matches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Match details
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Match not found
+ */
 router.get('/:id', getMatch);
+
+/**
+ * @swagger
+ * /matches/{id}:
+ *   put:
+ *     summary: Update match (including scores)
+ *     tags: [Matches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Match updated
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Match not found
+ */
 router.put('/:id', requireApproved, updateMatchValidation, updateMatch);
+
+/**
+ * @swagger
+ * /matches/{id}:
+ *   delete:
+ *     summary: Delete match
+ *     tags: [Matches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Match deleted
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Match not found
+ */
 router.delete('/:id', requireApproved, deleteMatch);
 
+/**
+ * @swagger
+ * /matches/{id}/stats:
+ *   get:
+ *     summary: Get stats for a match
+ *     tags: [Matches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Match stats
+ *       401:
+ *         description: Unauthorized
+ */
 // Match stats routes
 router.get('/:id/stats', getMatchStats);
+
+/**
+ * @swagger
+ * /matches/{id}/stats:
+ *   post:
+ *     summary: Add stats for a match
+ *     tags: [Matches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       201:
+ *         description: Match stats added
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/:id/stats', requireApproved, matchStatsValidation, addMatchStats);
 
 module.exports = router;
