@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const swaggerUi = require('swagger-ui-express');
+
+const swaggerSpec = require('./config/swagger');
 
 // Import routes
 const routes = require('./routes');
@@ -35,6 +38,9 @@ if (process.env.NODE_ENV === 'development') {
 
 // API routes
 app.use('/api', routes);
+
+// Swagger API documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Root endpoint
 app.get('/', (req, res) => {
