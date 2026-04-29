@@ -38,3 +38,9 @@ Thumbs.db
 # Uploads (if stored locally)
 uploads/
 
+# Scripts
+scripts/createAdmin.js
+
+# Frontend
+frontend/
+../frontend/
