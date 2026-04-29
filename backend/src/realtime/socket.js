@@ -89,10 +89,10 @@ const initSocket = (httpServer) => {
     // Send or start conversation
     socket.on('message:send', async (payload, callback) => {
       try {
-        const { toUserId, content } = payload || {};
+        const { toUserId, content, sharedVideo } = payload || {};
 
-        if (!toUserId || !content || !content.trim()) {
-          const error = 'toUserId and non-empty content are required';
+        if (!toUserId || (!content?.trim() && !sharedVideo)) {
+          const error = 'toUserId and either content or a sharedVideo is required';
           if (callback) return callback({ success: false, error });
           return;
         }
@@ -121,11 +121,17 @@ const initSocket = (httpServer) => {
           return;
         }
 
-        const message = await Message.create({
+        let message = await Message.create({
           senderId,
           receiverId,
-          content: content.trim(),
+          content: content ? content.trim() : '',
+          sharedVideo: sharedVideo || undefined,
         });
+
+        // If a video was shared, populate it immediately so the frontend has rich embed data
+        if (message.sharedVideo) {
+          await message.populate('sharedVideo');
+        }
 
         // ── Critical: serialize all ObjectIds to plain strings before emitting ──
         // Mongoose ObjectId objects do NOT reliably equal plain strings with ===
@@ -135,6 +141,8 @@ const initSocket = (httpServer) => {
           senderId:   message.senderId.toString(),
           receiverId: message.receiverId.toString(),
           content:    message.content,
+          sharedVideo: message.sharedVideo,
+
           isRead:     message.isRead,
           createdAt:  message.createdAt,
           updatedAt:  message.updatedAt,
@@ -175,6 +183,7 @@ const initSocket = (httpServer) => {
             { senderId: other, receiverId: me },
           ],
         })
+          .populate('sharedVideo')
           .sort({ createdAt: 1 })
           .limit(Number(limit) || 50)
           .lean();
@@ -185,6 +194,7 @@ const initSocket = (httpServer) => {
           senderId:   m.senderId.toString(),
           receiverId: m.receiverId.toString(),
           content:    m.content,
+          sharedVideo: m.sharedVideo,
           isRead:     m.isRead,
           createdAt:  m.createdAt,
           updatedAt:  m.updatedAt,
