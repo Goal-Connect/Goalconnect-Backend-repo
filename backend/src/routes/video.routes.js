@@ -11,16 +11,21 @@ const {
   getVideoAnalysis,
   getVideoFeed,
   incrementVideoView,
+  toggleLike,
+  getComments,
+  addComment,
+  deleteComment,
+  toggleCommentLike,
 } = require('../controllers/video.controller');
 
 const { protect, optionalAuth } = require('../middleware/auth.middleware');
 const { authorize, requireApproved } = require('../middleware/role.middleware');
+const { uploadVideoMw } = require('../middleware/upload.middleware');
 
 // Validation rules
 const uploadVideoValidation = [
   body('playerId')
-    .notEmpty()
-    .withMessage('Player ID is required')
+    .optional()
     .isMongoId()
     .withMessage('Invalid player ID'),
   body('title')
@@ -32,11 +37,7 @@ const uploadVideoValidation = [
     .optional()
     .isLength({ max: 500 })
     .withMessage('Description cannot exceed 500 characters'),
-  body('videoUrl')
-    .notEmpty()
-    .withMessage('Video URL is required')
-    .isURL()
-    .withMessage('Please provide a valid URL'),
+  // videoUrl comes from Cloudinary via multer, so we remove the requirement here.
   body('videoType')
     .notEmpty()
     .withMessage('Video type is required')
@@ -84,8 +85,8 @@ const updateVideoValidation = [
  *       200:
  *         description: Video feed
  */
-// Public routes
-router.get('/feed', getVideoFeed);
+// Public/Smart routes
+router.get('/feed', optionalAuth, getVideoFeed);
 
 /**
  * @swagger
@@ -182,16 +183,20 @@ router.post('/:id/view', incrementVideoView);
  * @swagger
  * /videos:
  *   post:
- *     summary: Upload a video (academy only)
+ *     summary: Upload a video (academy or player)
  *     tags: [Videos]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
+ *             properties:
+ *               video:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       201:
  *         description: Video uploaded
@@ -199,9 +204,19 @@ router.post('/:id/view', incrementVideoView);
  *         description: Validation error
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (requires approved account)
  */
-// Protected routes (Academy only)
-router.post('/', protect, authorize('academy'), requireApproved, uploadVideoValidation, uploadVideo);
+// Protected routes (Academy and Player)
+router.post(
+  '/', 
+  protect, 
+  authorize('academy', 'player'), 
+  requireApproved, 
+  uploadVideoMw.single('video'),
+  uploadVideoValidation, 
+  uploadVideo 
+);
 
 /**
  * @swagger
@@ -231,13 +246,13 @@ router.post('/', protect, authorize('academy'), requireApproved, uploadVideoVali
  *       404:
  *         description: Video not found
  */
-router.put('/:id', protect, authorize('academy'), updateVideoValidation, updateVideo);
+router.put('/:id', protect, authorize('academy', 'player', 'admin'), updateVideoValidation, updateVideo);
 
 /**
  * @swagger
  * /videos/{id}:
  *   delete:
- *     summary: Delete video (academy only)
+ *     summary: Delete video (owner only)
  *     tags: [Videos]
  *     security:
  *       - bearerAuth: []
@@ -255,7 +270,60 @@ router.put('/:id', protect, authorize('academy'), updateVideoValidation, updateV
  *       404:
  *         description: Video not found
  */
-router.delete('/:id', protect, authorize('academy'), deleteVideo);
+router.delete('/:id', protect, authorize('academy', 'player', 'admin'), deleteVideo);
+
+/**
+ * @swagger
+ * /videos/{id}/like:
+ *   post:
+ *     summary: Toggle like on a video
+ *     tags: [Videos]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/:id/like', protect, toggleLike);
+
+/**
+ * @swagger
+ * /videos/{id}/comments:
+ *   get:
+ *     summary: Get comments for a video
+ *     tags: [Videos]
+ */
+router.get('/:id/comments', optionalAuth, getComments);
+
+/**
+ * @swagger
+ * /videos/{id}/comments:
+ *   post:
+ *     summary: Add a comment to a video
+ *     tags: [Videos]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/:id/comments', protect, addComment);
+
+/**
+ * @swagger
+ * /videos/{id}/comments/{commentId}:
+ *   delete:
+ *     summary: Delete a comment
+ *     tags: [Videos]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.delete('/:id/comments/:commentId', protect, deleteComment);
+
+/**
+ * @swagger
+ * /videos/{id}/comments/{commentId}/like:
+ *   post:
+ *     summary: Toggle like on a comment
+ *     tags: [Videos]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/:id/comments/:commentId/like', protect, toggleCommentLike);
 
 module.exports = router;
 

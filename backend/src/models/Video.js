@@ -5,7 +5,7 @@ const videoSchema = new mongoose.Schema(
     player: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Player',
-      required: [true, 'Player is required'],
+      // required: false now so academies can upload generic game videos
     },
     match: {
       type: mongoose.Schema.Types.ObjectId,
@@ -70,6 +70,12 @@ const videoSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   {
     timestamps: true,
