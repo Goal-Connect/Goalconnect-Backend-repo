@@ -1,0 +1,1490 @@
+openapi: 3.0.3
+info:
+  title: GoalConnect Backend API
+  version: 1.0.0
+  description: |
+    REST API for GoalConnect.
+
+    Main features:
+    - JWT authentication
+    - Academy and scout workflows
+    - Player, match, and video management
+    - Admin moderation
+    - Direct messaging
+servers:
+  - url: http://localhost:5000/api
+    description: Local development server
+
+tags:
+  - name: Misc
+  - name: Auth
+  - name: Academies
+  - name: Players
+  - name: Scouts
+  - name: Videos
+  - name: Matches
+  - name: Admin
+  - name: Messages
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ObjectId:
+      type: string
+      example: 680df8bf8f0e823a9ca20e99
+
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation failed
+        errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, academy, scout, player]
+        status:
+          type: string
+          enum: [pending, verified, approved, suspended, rejected]
+
+    Academy:
+      type: object
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        user:
+          $ref: '#/components/schemas/ObjectId'
+        name:
+          type: string
+        region:
+          type: string
+        woreda:
+          type: string
+        address:
+          type: string
+        ownerName:
+          type: string
+        contactPhone:
+          type: string
+        description:
+          type: string
+        logoUrl:
+          type: string
+        licenseDocumentUrl:
+          type: string
+        registrationStatus:
+          type: string
+          enum: [awaiting_approval, approved, rejected, suspended]
+
+    Player:
+      type: object
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        academy:
+          oneOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: object
+              additionalProperties: true
+        user:
+          $ref: '#/components/schemas/ObjectId'
+        fullName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date-time
+        position:
+          type: string
+          enum: [goalkeeper, defender, midfielder, forward]
+        strongFoot:
+          type: string
+          enum: [left, right, both]
+        height:
+          type: integer
+        weight:
+          type: integer
+        jerseyNumber:
+          type: integer
+        profileImageUrl:
+          type: string
+        bio:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, archived]
+
+    Video:
+      type: object
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        player:
+          oneOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: object
+              additionalProperties: true
+        match:
+          $ref: '#/components/schemas/ObjectId'
+        uploadedBy:
+          $ref: '#/components/schemas/ObjectId'
+        title:
+          type: string
+        description:
+          type: string
+        videoUrl:
+          type: string
+        thumbnailUrl:
+          type: string
+        videoType:
+          type: string
+          enum: [highlight, drill, match]
+        drillType:
+          type: string
+          enum: [dribbling, shooting, passing, speed, agility, other]
+        privacy:
+          type: string
+          enum: [public, scout_only, private]
+        processingStatus:
+          type: string
+          enum: [uploaded, processing, analyzed, failed]
+        views:
+          type: integer
+
+    Match:
+      type: object
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        academy:
+          $ref: '#/components/schemas/ObjectId'
+        opponent:
+          type: string
+        matchDate:
+          type: string
+          format: date-time
+        location:
+          type: string
+        matchType:
+          type: string
+          enum: [friendly, league, tournament, training]
+        homeScore:
+          type: integer
+        awayScore:
+          type: integer
+        isHome:
+          type: boolean
+        resultStatus:
+          type: string
+          enum: [pending, submitted, verified, disputed]
+        notes:
+          type: string
+
+    MatchStats:
+      type: object
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        match:
+          $ref: '#/components/schemas/ObjectId'
+        player:
+          oneOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: object
+              additionalProperties: true
+        goals:
+          type: integer
+        assists:
+          type: integer
+        minutesPlayed:
+          type: integer
+        yellowCards:
+          type: integer
+        redCard:
+          type: boolean
+        rating:
+          type: number
+          minimum: 1
+          maximum: 10
+        notes:
+          type: string
+
+    Message:
+      type: object
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        senderId:
+          $ref: '#/components/schemas/ObjectId'
+        receiverId:
+          $ref: '#/components/schemas/ObjectId'
+        content:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    DrillAnalysis:
+      type: object
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        video:
+          $ref: '#/components/schemas/ObjectId'
+        player:
+          $ref: '#/components/schemas/ObjectId'
+        metrics:
+          type: object
+          additionalProperties: true
+        heatmapData:
+          type: object
+          additionalProperties: true
+        trackingData:
+          type: object
+          additionalProperties: true
+        confidence:
+          type: number
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    RegisterRequest:
+      type: object
+      required: [email, password, role]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        role:
+          type: string
+          enum: [academy, scout]
+        name:
+          type: string
+        region:
+          type: string
+        woreda:
+          type: string
+        address:
+          type: string
+        ownerName:
+          type: string
+        contactPhone:
+          type: string
+        fullName:
+          type: string
+        organization:
+          type: string
+        country:
+          type: string
+        phone:
+          type: string
+
+    UpdatePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 6
+
+    CreatePlayerRequest:
+      type: object
+      required: [email, password, fullName, dateOfBirth, position]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        fullName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        position:
+          type: string
+          enum: [goalkeeper, defender, midfielder, forward]
+        secondaryPosition:
+          type: string
+          enum: [goalkeeper, defender, midfielder, forward, '']
+        strongFoot:
+          type: string
+          enum: [left, right, both]
+        height:
+          type: integer
+        weight:
+          type: integer
+        jerseyNumber:
+          type: integer
+        profileImageUrl:
+          type: string
+        bio:
+          type: string
+
+    UpdatePlayerRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        position:
+          type: string
+          enum: [goalkeeper, defender, midfielder, forward]
+        secondaryPosition:
+          type: string
+          enum: [goalkeeper, defender, midfielder, forward, '']
+        strongFoot:
+          type: string
+          enum: [left, right, both]
+        height:
+          type: integer
+        weight:
+          type: integer
+        jerseyNumber:
+          type: integer
+        profileImageUrl:
+          type: string
+        bio:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, archived]
+
+    UploadVideoRequest:
+      type: object
+      required: [playerId, title, videoUrl, videoType]
+      properties:
+        playerId:
+          $ref: '#/components/schemas/ObjectId'
+        title:
+          type: string
+        description:
+          type: string
+        videoUrl:
+          type: string
+        videoType:
+          type: string
+          enum: [highlight, drill, match]
+        drillType:
+          type: string
+          enum: [dribbling, shooting, passing, speed, agility, other]
+        privacy:
+          type: string
+          enum: [public, scout_only, private]
+
+    UpdateVideoRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        drillType:
+          type: string
+          enum: [dribbling, shooting, passing, speed, agility, other]
+        privacy:
+          type: string
+          enum: [public, scout_only, private]
+
+    CreateMatchRequest:
+      type: object
+      required: [opponent, matchDate]
+      properties:
+        opponent:
+          type: string
+        matchDate:
+          type: string
+          format: date-time
+        location:
+          type: string
+        matchType:
+          type: string
+          enum: [friendly, league, tournament, training]
+        isHome:
+          type: boolean
+        notes:
+          type: string
+
+    UpdateMatchRequest:
+      type: object
+      properties:
+        opponent:
+          type: string
+        matchDate:
+          type: string
+          format: date-time
+        location:
+          type: string
+        matchType:
+          type: string
+          enum: [friendly, league, tournament, training]
+        homeScore:
+          type: integer
+        awayScore:
+          type: integer
+        isHome:
+          type: boolean
+        notes:
+          type: string
+        resultStatus:
+          type: string
+          enum: [pending, submitted, verified, disputed]
+
+    MatchStatsRequest:
+      type: object
+      required: [playerId]
+      properties:
+        playerId:
+          $ref: '#/components/schemas/ObjectId'
+        goals:
+          type: integer
+        assists:
+          type: integer
+        minutesPlayed:
+          type: integer
+        yellowCards:
+          type: integer
+        redCard:
+          type: boolean
+        rating:
+          type: number
+          minimum: 1
+          maximum: 10
+        notes:
+          type: string
+
+    UpdateAcademyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        region:
+          type: string
+        woreda:
+          type: string
+        address:
+          type: string
+        ownerName:
+          type: string
+        foundingDate:
+          type: string
+          format: date
+        contactPhone:
+          type: string
+        description:
+          type: string
+        logoUrl:
+          type: string
+
+    UpdateScoutProfileRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+        organization:
+          type: string
+        country:
+          type: string
+        phone:
+          type: string
+        profileImageUrl:
+          type: string
+        bio:
+          type: string
+        interestedPositions:
+          type: array
+          items:
+            type: string
+            enum: [goalkeeper, defender, midfielder, forward]
+        preferredAgeRange:
+          type: object
+          properties:
+            min:
+              type: integer
+            max:
+              type: integer
+        preferredRegions:
+          type: array
+          items:
+            type: string
+
+    SendMessageRequest:
+      type: object
+      required: [receiverId, content]
+      properties:
+        receiverId:
+          $ref: '#/components/schemas/ObjectId'
+        content:
+          type: string
+          maxLength: 2000
+
+paths:
+  /health:
+    get:
+      tags: [Misc]
+      summary: Health check
+      responses:
+        '200':
+          description: API is running
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new academy or scout user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and get JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user and role profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+        '401':
+          description: Unauthorized
+
+  /auth/updatepassword:
+    put:
+      tags: [Auth]
+      summary: Update current user password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePasswordRequest'
+      responses:
+        '200':
+          description: Password updated
+        '400':
+          description: Validation failed
+        '401':
+          description: Unauthorized
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current user (client token removal)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+
+  /academies:
+    get:
+      tags: [Academies]
+      summary: List approved academies
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: region
+          schema: { type: string }
+      responses:
+        '200':
+          description: Academy list
+
+  /academies/me:
+    get:
+      tags: [Academies]
+      summary: Get current academy profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Academy profile
+        '401':
+          description: Unauthorized
+    put:
+      tags: [Academies]
+      summary: Update current academy profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAcademyRequest'
+      responses:
+        '200':
+          description: Academy updated
+        '400':
+          description: Validation failed
+        '401':
+          description: Unauthorized
+
+  /academies/me/players:
+    get:
+      tags: [Academies]
+      summary: List players belonging to current academy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [active, inactive, archived] }
+        - in: query
+          name: position
+          schema: { type: string, enum: [goalkeeper, defender, midfielder, forward] }
+      responses:
+        '200':
+          description: Player list
+
+  /academies/me/license:
+    post:
+      tags: [Academies]
+      summary: Upload academy license document
+      description: Expects multipart upload; controller reads req.file
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: License uploaded
+        '400':
+          description: File missing or invalid
+
+  /academies/{id}:
+    get:
+      tags: [Academies]
+      summary: Get academy details by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Academy details
+        '404':
+          description: Academy not found
+
+  /players:
+    get:
+      tags: [Players]
+      summary: List players with filtering
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: position
+          schema: { type: string, enum: [goalkeeper, defender, midfielder, forward] }
+        - in: query
+          name: strongFoot
+          schema: { type: string, enum: [left, right, both] }
+        - in: query
+          name: minAge
+          schema: { type: integer }
+        - in: query
+          name: maxAge
+          schema: { type: integer }
+        - in: query
+          name: minHeight
+          schema: { type: integer }
+        - in: query
+          name: maxHeight
+          schema: { type: integer }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: sortBy
+          schema: { type: string }
+        - in: query
+          name: sortOrder
+          schema: { type: string, enum: [asc, desc] }
+      responses:
+        '200':
+          description: Player list
+    post:
+      tags: [Players]
+      summary: Create player (academy only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlayerRequest'
+      responses:
+        '201':
+          description: Player created
+        '400':
+          description: Validation failed
+        '403':
+          description: Academy not approved
+
+  /players/saved:
+    get:
+      tags: [Players]
+      summary: Get players saved by current scout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Saved players list
+        '401':
+          description: Unauthorized
+
+  /players/{id}:
+    get:
+      tags: [Players]
+      summary: Get player by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Player details
+        '404':
+          description: Player not found
+    put:
+      tags: [Players]
+      summary: Update player (academy only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlayerRequest'
+      responses:
+        '200':
+          description: Player updated
+        '404':
+          description: Player not found
+    delete:
+      tags: [Players]
+      summary: Archive player (academy only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Player archived
+        '404':
+          description: Player not found
+
+  /players/{id}/videos:
+    get:
+      tags: [Players]
+      summary: Get videos for a player (privacy-filtered)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: videoType
+          schema: { type: string, enum: [highlight, drill, match] }
+      responses:
+        '200':
+          description: Player videos
+
+  /players/{id}/save:
+    post:
+      tags: [Players]
+      summary: Save player to scout watchlist
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Player saved
+        '404':
+          description: Player not found
+    delete:
+      tags: [Players]
+      summary: Remove player from scout watchlist
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Player removed
+
+  /scouts/me:
+    get:
+      tags: [Scouts]
+      summary: Get current scout profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Scout profile
+    put:
+      tags: [Scouts]
+      summary: Update current scout profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateScoutProfileRequest'
+      responses:
+        '200':
+          description: Scout profile updated
+
+  /scouts/saved-players:
+    get:
+      tags: [Scouts]
+      summary: Get saved players for current scout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Saved players
+
+  /scouts/saved-players/{playerId}:
+    post:
+      tags: [Scouts]
+      summary: Save player (scout endpoint)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: playerId
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Player saved
+    delete:
+      tags: [Scouts]
+      summary: Unsave player (scout endpoint)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: playerId
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Player removed
+
+  /scouts/recently-viewed:
+    get:
+      tags: [Scouts]
+      summary: Get recently viewed players for current scout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Recently viewed players
+
+  /videos/feed:
+    get:
+      tags: [Videos]
+      summary: Get discovery feed videos
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Feed items
+
+  /videos:
+    get:
+      tags: [Videos]
+      summary: List public analyzed videos
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: videoType
+          schema: { type: string, enum: [highlight, drill, match] }
+        - in: query
+          name: playerId
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Video list
+    post:
+      tags: [Videos]
+      summary: Upload video (academy only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadVideoRequest'
+      responses:
+        '201':
+          description: Video uploaded
+        '400':
+          description: Validation failed
+
+  /videos/{id}:
+    get:
+      tags: [Videos]
+      summary: Get video by ID with privacy checks
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Video details
+        '403':
+          description: Forbidden by privacy policy
+        '404':
+          description: Video not found
+    put:
+      tags: [Videos]
+      summary: Update video metadata (academy owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVideoRequest'
+      responses:
+        '200':
+          description: Video updated
+        '403':
+          description: Not authorized
+    delete:
+      tags: [Videos]
+      summary: Delete video (academy owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Video deleted
+        '403':
+          description: Not authorized
+
+  /videos/{id}/analysis:
+    get:
+      tags: [Videos]
+      summary: Get drill analysis for a video
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Video analysis
+        '404':
+          description: Analysis not available
+
+  /videos/{id}/view:
+    post:
+      tags: [Videos]
+      summary: Increment video view count
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: View count updated
+
+  /matches:
+    get:
+      tags: [Matches]
+      summary: List matches for current academy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: matchType
+          schema: { type: string, enum: [friendly, league, tournament, training] }
+      responses:
+        '200':
+          description: Match list
+    post:
+      tags: [Matches]
+      summary: Create match for current academy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMatchRequest'
+      responses:
+        '201':
+          description: Match created
+
+  /matches/{id}:
+    get:
+      tags: [Matches]
+      summary: Get match details including stats
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Match details
+        '404':
+          description: Match not found
+    put:
+      tags: [Matches]
+      summary: Update match
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMatchRequest'
+      responses:
+        '200':
+          description: Match updated
+    delete:
+      tags: [Matches]
+      summary: Delete match
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Match deleted
+
+  /matches/{id}/stats:
+    get:
+      tags: [Matches]
+      summary: Get match stats
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Match stats list
+    post:
+      tags: [Matches]
+      summary: Add or update stats for a player in a match
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchStatsRequest'
+      responses:
+        '201':
+          description: Match stats added or updated
+
+  /admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: Get admin dashboard metrics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard metrics
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List users
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: role
+          schema: { type: string, enum: [admin, academy, scout, player] }
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, verified, approved, suspended, rejected] }
+      responses:
+        '200':
+          description: Users list
+
+  /admin/academies:
+    get:
+      tags: [Admin]
+      summary: List academies across all statuses
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [awaiting_approval, approved, rejected, suspended] }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        '200':
+          description: Academies list
+
+  /admin/academies/{id}/approve:
+    put:
+      tags: [Admin]
+      summary: Approve an academy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Academy approved
+        '404':
+          description: Academy not found
+
+  /admin/academies/{id}/reject:
+    put:
+      tags: [Admin]
+      summary: Reject an academy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Academy rejected
+        '400':
+          description: Reason is required
+
+  /admin/academies/{id}/suspend:
+    put:
+      tags: [Admin]
+      summary: Suspend an academy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Academy suspended
+        '400':
+          description: Reason is required
+
+  /admin/scouts:
+    get:
+      tags: [Admin]
+      summary: List scouts
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Scouts list
+
+  /admin/scouts/{id}/approve:
+    put:
+      tags: [Admin]
+      summary: Approve a scout
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Scout approved
+        '404':
+          description: Scout not found
+
+  /admin/scouts/{id}/suspend:
+    put:
+      tags: [Admin]
+      summary: Suspend a scout
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Scout suspended
+        '404':
+          description: Scout not found
+
+  /messages:
+    post:
+      tags: [Messages]
+      summary: Send a direct message
+      description: Only scouts can start a new conversation, and only with players.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: Message sent
+        '403':
+          description: Conversation start policy violation
+
+  /messages/{userId}:
+    get:
+      tags: [Messages]
+      summary: Get conversation with a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Conversation messages

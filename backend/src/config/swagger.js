@@ -1,31 +1,17 @@
 const swaggerJSDoc = require('swagger-jsdoc');
+const path = require('path');
 
 const options = {
   definition: {
-    openapi: '3.0.0',
+    openapi: '3.0.3',
     info: {
-      title: 'GoalConnect API',
+      title: 'GoalConnect Backend API',
       version: '1.0.0',
       description: 'API documentation for GoalConnect backend',
     },
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
-      },
-    },
-    servers: [
-      {
-        url: 'http://localhost:5000/api',
-        description: 'Local development server',
-      },
-    ],
   },
-  // Files containing annotations for the OpenAPI specification
-  apis: ['src/routes/*.js', 'src/controllers/*.js'],
+  // Canonical OpenAPI source file
+  apis: [path.join(__dirname, '../docs/openapi.yaml')],
 };
 
 const swaggerSpec = swaggerJSDoc(options);
