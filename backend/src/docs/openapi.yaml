@@ -57,7 +57,7 @@ components:
       type: object
       properties:
         id:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         email:
           type: string
           format: email
@@ -72,9 +72,9 @@ components:
       type: object
       properties:
         _id:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         user:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         name:
           type: string
         region:
@@ -101,14 +101,14 @@ components:
       type: object
       properties:
         _id:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         academy:
           oneOf:
-            - $ref: '#/components/schemas/ObjectId'
+            - $ref: "#/components/schemas/ObjectId"
             - type: object
               additionalProperties: true
         user:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         fullName:
           type: string
         dateOfBirth:
@@ -138,16 +138,16 @@ components:
       type: object
       properties:
         _id:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         player:
           oneOf:
-            - $ref: '#/components/schemas/ObjectId'
+            - $ref: "#/components/schemas/ObjectId"
             - type: object
               additionalProperties: true
         match:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         uploadedBy:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         title:
           type: string
         description:
@@ -175,9 +175,9 @@ components:
       type: object
       properties:
         _id:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         academy:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         opponent:
           type: string
         matchDate:
@@ -204,12 +204,12 @@ components:
       type: object
       properties:
         _id:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         match:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         player:
           oneOf:
-            - $ref: '#/components/schemas/ObjectId'
+            - $ref: "#/components/schemas/ObjectId"
             - type: object
               additionalProperties: true
         goals:
@@ -233,11 +233,11 @@ components:
       type: object
       properties:
         _id:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         senderId:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         receiverId:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         content:
           type: string
         isRead:
@@ -250,11 +250,11 @@ components:
       type: object
       properties:
         _id:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         video:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         player:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         metrics:
           type: object
           additionalProperties: true
@@ -341,7 +341,7 @@ components:
           enum: [goalkeeper, defender, midfielder, forward]
         secondaryPosition:
           type: string
-          enum: [goalkeeper, defender, midfielder, forward, '']
+          enum: [goalkeeper, defender, midfielder, forward, ""]
         strongFoot:
           type: string
           enum: [left, right, both]
@@ -369,7 +369,7 @@ components:
           enum: [goalkeeper, defender, midfielder, forward]
         secondaryPosition:
           type: string
-          enum: [goalkeeper, defender, midfielder, forward, '']
+          enum: [goalkeeper, defender, midfielder, forward, ""]
         strongFoot:
           type: string
           enum: [left, right, both]
@@ -392,7 +392,7 @@ components:
       required: [playerId, title, videoUrl, videoType]
       properties:
         playerId:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         title:
           type: string
         description:
@@ -472,7 +472,7 @@ components:
       required: [playerId]
       properties:
         playerId:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         goals:
           type: integer
         assists:
@@ -550,7 +550,7 @@ components:
       required: [receiverId, content]
       properties:
         receiverId:
-          $ref: '#/components/schemas/ObjectId'
+          $ref: "#/components/schemas/ObjectId"
         content:
           type: string
           maxLength: 2000
@@ -561,7 +561,7 @@ paths:
       tags: [Misc]
       summary: Health check
       responses:
-        '200':
+        "200":
           description: API is running
 
   /auth/register:
@@ -573,16 +573,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterRequest'
+              $ref: "#/components/schemas/RegisterRequest"
       responses:
-        '201':
+        "201":
           description: Registration successful
-        '400':
+        "400":
           description: Validation error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
 
   /auth/login:
     post:
@@ -593,11 +593,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: "#/components/schemas/LoginRequest"
       responses:
-        '200':
+        "200":
           description: Login successful
-        '401':
+        "401":
           description: Invalid credentials
 
   /auth/me:
@@ -607,9 +607,9 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Current user profile
-        '401':
+        "401":
           description: Unauthorized
 
   /auth/updatepassword:
@@ -623,13 +623,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdatePasswordRequest'
+              $ref: "#/components/schemas/UpdatePasswordRequest"
       responses:
-        '200':
+        "200":
           description: Password updated
-        '400':
+        "400":
           description: Validation failed
-        '401':
+        "401":
           description: Unauthorized
 
   /auth/logout:
@@ -639,7 +639,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Logout successful
 
   /academies:
@@ -660,7 +660,7 @@ paths:
           name: region
           schema: { type: string }
       responses:
-        '200':
+        "200":
           description: Academy list
 
   /academies/me:
@@ -670,9 +670,9 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Academy profile
-        '401':
+        "401":
           description: Unauthorized
     put:
       tags: [Academies]
@@ -684,13 +684,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateAcademyRequest'
+              $ref: "#/components/schemas/UpdateAcademyRequest"
       responses:
-        '200':
+        "200":
           description: Academy updated
-        '400':
+        "400":
           description: Validation failed
-        '401':
+        "401":
           description: Unauthorized
 
   /academies/me/players:
@@ -711,9 +711,10 @@ paths:
           schema: { type: string, enum: [active, inactive, archived] }
         - in: query
           name: position
-          schema: { type: string, enum: [goalkeeper, defender, midfielder, forward] }
+          schema:
+            { type: string, enum: [goalkeeper, defender, midfielder, forward] }
       responses:
-        '200':
+        "200":
           description: Player list
 
   /academies/me/license:
@@ -734,9 +735,9 @@ paths:
                   type: string
                   format: binary
       responses:
-        '200':
+        "200":
           description: License uploaded
-        '400':
+        "400":
           description: File missing or invalid
 
   /academies/{id}:
@@ -748,11 +749,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Academy details
-        '404':
+        "404":
           description: Academy not found
 
   /players:
@@ -768,7 +769,8 @@ paths:
           schema: { type: integer, minimum: 1 }
         - in: query
           name: position
-          schema: { type: string, enum: [goalkeeper, defender, midfielder, forward] }
+          schema:
+            { type: string, enum: [goalkeeper, defender, midfielder, forward] }
         - in: query
           name: strongFoot
           schema: { type: string, enum: [left, right, both] }
@@ -794,7 +796,7 @@ paths:
           name: sortOrder
           schema: { type: string, enum: [asc, desc] }
       responses:
-        '200':
+        "200":
           description: Player list
     post:
       tags: [Players]
@@ -806,13 +808,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePlayerRequest'
+              $ref: "#/components/schemas/CreatePlayerRequest"
       responses:
-        '201':
+        "201":
           description: Player created
-        '400':
+        "400":
           description: Validation failed
-        '403':
+        "403":
           description: Academy not approved
 
   /players/saved:
@@ -822,9 +824,9 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Saved players list
-        '401':
+        "401":
           description: Unauthorized
 
   /players/{id}:
@@ -836,11 +838,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Player details
-        '404':
+        "404":
           description: Player not found
     put:
       tags: [Players]
@@ -852,17 +854,17 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdatePlayerRequest'
+              $ref: "#/components/schemas/UpdatePlayerRequest"
       responses:
-        '200':
+        "200":
           description: Player updated
-        '404':
+        "404":
           description: Player not found
     delete:
       tags: [Players]
@@ -874,11 +876,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Player archived
-        '404':
+        "404":
           description: Player not found
 
   /players/{id}/videos:
@@ -890,7 +892,7 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
         - in: query
           name: page
           schema: { type: integer, minimum: 1 }
@@ -901,7 +903,7 @@ paths:
           name: videoType
           schema: { type: string, enum: [highlight, drill, match] }
       responses:
-        '200':
+        "200":
           description: Player videos
 
   /players/{id}/save:
@@ -915,11 +917,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Player saved
-        '404':
+        "404":
           description: Player not found
     delete:
       tags: [Players]
@@ -931,9 +933,9 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Player removed
 
   /scouts/me:
@@ -943,7 +945,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Scout profile
     put:
       tags: [Scouts]
@@ -955,9 +957,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateScoutProfileRequest'
+              $ref: "#/components/schemas/UpdateScoutProfileRequest"
       responses:
-        '200':
+        "200":
           description: Scout profile updated
 
   /scouts/saved-players:
@@ -967,7 +969,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Saved players
 
   /scouts/saved-players/{playerId}:
@@ -981,9 +983,9 @@ paths:
           name: playerId
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Player saved
     delete:
       tags: [Scouts]
@@ -995,9 +997,9 @@ paths:
           name: playerId
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Player removed
 
   /scouts/recently-viewed:
@@ -1007,7 +1009,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Recently viewed players
 
   /videos/feed:
@@ -1022,7 +1024,7 @@ paths:
           name: limit
           schema: { type: integer, minimum: 1 }
       responses:
-        '200':
+        "200":
           description: Feed items
 
   /videos:
@@ -1042,9 +1044,9 @@ paths:
         - in: query
           name: playerId
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Video list
     post:
       tags: [Videos]
@@ -1056,11 +1058,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UploadVideoRequest'
+              $ref: "#/components/schemas/UploadVideoRequest"
       responses:
-        '201':
+        "201":
           description: Video uploaded
-        '400':
+        "400":
           description: Validation failed
 
   /videos/{id}:
@@ -1072,13 +1074,13 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Video details
-        '403':
+        "403":
           description: Forbidden by privacy policy
-        '404':
+        "404":
           description: Video not found
     put:
       tags: [Videos]
@@ -1090,17 +1092,17 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateVideoRequest'
+              $ref: "#/components/schemas/UpdateVideoRequest"
       responses:
-        '200':
+        "200":
           description: Video updated
-        '403':
+        "403":
           description: Not authorized
     delete:
       tags: [Videos]
@@ -1112,11 +1114,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Video deleted
-        '403':
+        "403":
           description: Not authorized
 
   /videos/{id}/analysis:
@@ -1128,11 +1130,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Video analysis
-        '404':
+        "404":
           description: Analysis not available
 
   /videos/{id}/view:
@@ -1144,9 +1146,9 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: View count updated
 
   /matches:
@@ -1164,9 +1166,10 @@ paths:
           schema: { type: integer, minimum: 1 }
         - in: query
           name: matchType
-          schema: { type: string, enum: [friendly, league, tournament, training] }
+          schema:
+            { type: string, enum: [friendly, league, tournament, training] }
       responses:
-        '200':
+        "200":
           description: Match list
     post:
       tags: [Matches]
@@ -1178,9 +1181,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateMatchRequest'
+              $ref: "#/components/schemas/CreateMatchRequest"
       responses:
-        '201':
+        "201":
           description: Match created
 
   /matches/{id}:
@@ -1194,11 +1197,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Match details
-        '404':
+        "404":
           description: Match not found
     put:
       tags: [Matches]
@@ -1210,15 +1213,15 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateMatchRequest'
+              $ref: "#/components/schemas/UpdateMatchRequest"
       responses:
-        '200':
+        "200":
           description: Match updated
     delete:
       tags: [Matches]
@@ -1230,9 +1233,9 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Match deleted
 
   /matches/{id}/stats:
@@ -1246,9 +1249,9 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Match stats list
     post:
       tags: [Matches]
@@ -1260,15 +1263,15 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MatchStatsRequest'
+              $ref: "#/components/schemas/MatchStatsRequest"
       responses:
-        '201':
+        "201":
           description: Match stats added or updated
 
   /admin/dashboard:
@@ -1278,7 +1281,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Dashboard metrics
 
   /admin/users:
@@ -1299,9 +1302,13 @@ paths:
           schema: { type: string, enum: [admin, academy, scout, player] }
         - in: query
           name: status
-          schema: { type: string, enum: [pending, verified, approved, suspended, rejected] }
+          schema:
+            {
+              type: string,
+              enum: [pending, verified, approved, suspended, rejected],
+            }
       responses:
-        '200':
+        "200":
           description: Users list
 
   /admin/academies:
@@ -1319,12 +1326,16 @@ paths:
           schema: { type: integer, minimum: 1 }
         - in: query
           name: status
-          schema: { type: string, enum: [awaiting_approval, approved, rejected, suspended] }
+          schema:
+            {
+              type: string,
+              enum: [awaiting_approval, approved, rejected, suspended],
+            }
         - in: query
           name: search
           schema: { type: string }
       responses:
-        '200':
+        "200":
           description: Academies list
 
   /admin/academies/{id}/approve:
@@ -1338,11 +1349,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Academy approved
-        '404':
+        "404":
           description: Academy not found
 
   /admin/academies/{id}/reject:
@@ -1356,7 +1367,7 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       requestBody:
         required: true
         content:
@@ -1368,9 +1379,9 @@ paths:
                 reason:
                   type: string
       responses:
-        '200':
+        "200":
           description: Academy rejected
-        '400':
+        "400":
           description: Reason is required
 
   /admin/academies/{id}/suspend:
@@ -1384,7 +1395,7 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       requestBody:
         required: true
         content:
@@ -1396,9 +1407,9 @@ paths:
                 reason:
                   type: string
       responses:
-        '200':
+        "200":
           description: Academy suspended
-        '400':
+        "400":
           description: Reason is required
 
   /admin/scouts:
@@ -1415,7 +1426,7 @@ paths:
           name: limit
           schema: { type: integer, minimum: 1 }
       responses:
-        '200':
+        "200":
           description: Scouts list
 
   /admin/scouts/{id}/approve:
@@ -1429,11 +1440,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Scout approved
-        '404':
+        "404":
           description: Scout not found
 
   /admin/scouts/{id}/suspend:
@@ -1447,11 +1458,11 @@ paths:
           name: id
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Scout suspended
-        '404':
+        "404":
           description: Scout not found
 
   /messages:
@@ -1466,11 +1477,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SendMessageRequest'
+              $ref: "#/components/schemas/SendMessageRequest"
       responses:
-        '201':
+        "201":
           description: Message sent
-        '403':
+        "403":
           description: Conversation start policy violation
 
   /messages/{userId}:
@@ -1484,7 +1495,7 @@ paths:
           name: userId
           required: true
           schema:
-            $ref: '#/components/schemas/ObjectId'
+            $ref: "#/components/schemas/ObjectId"
       responses:
-        '200':
+        "200":
           description: Conversation messages
