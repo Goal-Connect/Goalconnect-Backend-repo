@@ -1,5 +1,5 @@
-const express = require('express');
-const { body } = require('express-validator');
+const express = require("express");
+const { body } = require("express-validator");
 const router = express.Router();
 
 const {
@@ -12,134 +12,137 @@ const {
   savePlayer,
   unsavePlayer,
   getSavedPlayers,
-} = require('../controllers/player.controller');
+} = require("../controllers/player.controller");
 
-const { PLAYER_POSITION_VALUES, AVAILABILITY_STATUSES } = require('../utils/profile.constants');
+const {
+  PLAYER_POSITION_VALUES,
+  AVAILABILITY_STATUSES,
+} = require("../utils/profile.constants");
 
-const { protect, optionalAuth } = require('../middleware/auth.middleware');
-const { authorize, requireApproved } = require('../middleware/role.middleware');
+const { protect, optionalAuth } = require("../middleware/auth.middleware");
+const { authorize, requireApproved } = require("../middleware/role.middleware");
 
 // Validation rules
 const createPlayerValidation = [
-  body('email')
+  body("email")
     .notEmpty()
-    .withMessage('Email is required')
+    .withMessage("Email is required")
     .isEmail()
-    .withMessage('Please provide a valid email address'),
-  body('password')
+    .withMessage("Please provide a valid email address"),
+  body("password")
     .notEmpty()
-    .withMessage('Password is required')
+    .withMessage("Password is required")
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters'),
-  body('fullName')
+    .withMessage("Password must be at least 6 characters"),
+  body("fullName")
     .notEmpty()
-    .withMessage('Full name is required')
+    .withMessage("Full name is required")
     .isLength({ min: 2, max: 100 })
-    .withMessage('Full name must be between 2 and 100 characters'),
-  body('dateOfBirth')
+    .withMessage("Full name must be between 2 and 100 characters"),
+  body("dateOfBirth")
     .notEmpty()
-    .withMessage('Date of birth is required')
+    .withMessage("Date of birth is required")
     .isISO8601()
-    .withMessage('Please provide a valid date'),
-  body('position')
+    .withMessage("Please provide a valid date"),
+  body("position")
     .optional()
     .isIn(PLAYER_POSITION_VALUES)
-    .withMessage('Invalid position'),
-  body('primaryPosition')
+    .withMessage("Invalid position"),
+  body("primaryPosition")
     .optional()
     .isIn(PLAYER_POSITION_VALUES)
-    .withMessage('Invalid primary position'),
-  body('secondaryPosition')
+    .withMessage("Invalid primary position"),
+  body("secondaryPosition")
     .optional()
-    .isIn([...PLAYER_POSITION_VALUES, ''])
-    .withMessage('Invalid secondary position'),
-  body('strongFoot')
+    .isIn([...PLAYER_POSITION_VALUES, ""])
+    .withMessage("Invalid secondary position"),
+  body("strongFoot")
     .optional()
-    .isIn(['left', 'right', 'both'])
-    .withMessage('Strong foot must be left, right, or both'),
-  body('height')
+    .isIn(["left", "right", "both"])
+    .withMessage("Strong foot must be left, right, or both"),
+  body("height")
     .optional()
     .isInt({ min: 100, max: 250 })
-    .withMessage('Height must be between 100 and 250 cm'),
-  body('weight')
+    .withMessage("Height must be between 100 and 250 cm"),
+  body("weight")
     .optional()
     .isInt({ min: 30, max: 150 })
-    .withMessage('Weight must be between 30 and 150 kg'),
-  body('jerseyNumber')
+    .withMessage("Weight must be between 30 and 150 kg"),
+  body("jerseyNumber")
     .optional()
     .isInt({ min: 1, max: 99 })
-    .withMessage('Jersey number must be between 1 and 99'),
-  body('availabilityStatus')
+    .withMessage("Jersey number must be between 1 and 99"),
+  body("availabilityStatus")
     .optional()
     .isIn(AVAILABILITY_STATUSES)
-    .withMessage('Invalid availability status'),
-  body('playingStyleTags')
+    .withMessage("Invalid availability status"),
+  body("playingStyleTags")
     .optional()
     .isArray()
-    .withMessage('Playing style tags must be an array'),
-  body('clubHistory')
+    .withMessage("Playing style tags must be an array"),
+  body("clubHistory")
     .optional()
     .isArray()
-    .withMessage('Club history must be an array'),
-  body('isAgeVerified')
+    .withMessage("Club history must be an array"),
+  body("isAgeVerified")
     .optional()
     .isBoolean()
-    .withMessage('isAgeVerified must be a boolean'),
+    .withMessage("isAgeVerified must be a boolean"),
 ];
 
 const updatePlayerValidation = [
-  body('fullName')
+  body("fullName")
     .optional()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Full name must be between 2 and 100 characters'),
-  body('dateOfBirth')
+    .withMessage("Full name must be between 2 and 100 characters"),
+  body("dateOfBirth")
     .optional()
     .isISO8601()
-    .withMessage('Please provide a valid date'),
-  body('position')
+    .withMessage("Please provide a valid date"),
+  body("position")
     .optional()
     .isIn(PLAYER_POSITION_VALUES)
-    .withMessage('Invalid position'),
-  body('primaryPosition')
+    .withMessage("Invalid position"),
+  body("primaryPosition")
     .optional()
     .isIn(PLAYER_POSITION_VALUES)
-    .withMessage('Invalid primary position'),
-  body('secondaryPosition')
+    .withMessage("Invalid primary position"),
+  body("secondaryPosition")
     .optional()
-    .isIn([...PLAYER_POSITION_VALUES, ''])
-    .withMessage('Invalid secondary position'),
-  body('strongFoot')
+    .isIn([...PLAYER_POSITION_VALUES, ""])
+    .withMessage("Invalid secondary position"),
+  body("strongFoot")
     .optional()
-    .isIn(['left', 'right', 'both'])
-    .withMessage('Strong foot must be left, right, or both'),
-  body('height')
+    .isIn(["left", "right", "both"])
+    .withMessage("Strong foot must be left, right, or both"),
+  body("height")
     .optional()
     .isInt({ min: 100, max: 250 })
-    .withMessage('Height must be between 100 and 250 cm'),
-  body('weight')
+    .withMessage("Height must be between 100 and 250 cm"),
+  body("weight")
     .optional()
     .isInt({ min: 30, max: 150 })
-    .withMessage('Weight must be between 30 and 150 kg'),
-  body('bio')
+    .withMessage("Weight must be between 30 and 150 kg"),
+  body("bio")
     .optional()
     .isLength({ max: 500 })
-    .withMessage('Bio cannot exceed 500 characters'),
-  body('availabilityStatus')
+    .withMessage("Bio cannot exceed 500 characters"),
+  body("availabilityStatus")
     .optional()
     .isIn(AVAILABILITY_STATUSES)
-    .withMessage('Invalid availability status'),
-  body('playingStyleTags')
+    .withMessage("Invalid availability status"),
+  body("playingStyleTags")
     .optional()
     .isArray()
-    .withMessage('Playing style tags must be an array'),
-  body('clubHistory')
+    .withMessage("Playing style tags must be an array"),
+  body("clubHistory")
     .optional()
     .isArray()
-    .withMessage('Club history must be an array'),
-  body('isAgeVerified')
+    .withMessage("Club history must be an array"),
+  body("isAgeVerified")
     .optional()
     .isBoolean()
-    .withMessage('isAgeVerified must be a boolean'),
+    .withMessage("isAgeVerified must be a boolean"),
 ];
 
 /**
@@ -181,8 +184,8 @@ const updatePlayerValidation = [
  *         description: List of players
  */
 // Public routes
-router.get('/saved', protect, authorize('scout'), getSavedPlayers);
-router.get('/', optionalAuth, getPlayers);
+router.get("/saved", protect, authorize("scout"), getSavedPlayers);
+router.get("/", optionalAuth, getPlayers);
 
 /**
  * @swagger
@@ -203,7 +206,7 @@ router.get('/', optionalAuth, getPlayers);
  *       404:
  *         description: Player not found
  */
-router.get('/:id', optionalAuth, getPlayer);
+router.get("/:id", optionalAuth, getPlayer);
 
 /**
  * @swagger
@@ -222,7 +225,7 @@ router.get('/:id', optionalAuth, getPlayer);
  *       200:
  *         description: List of player videos
  */
-router.get('/:id/videos', optionalAuth, getPlayerVideos);
+router.get("/:id/videos", optionalAuth, getPlayerVideos);
 
 /**
  * @swagger
@@ -246,7 +249,7 @@ router.get('/:id/videos', optionalAuth, getPlayerVideos);
  *         description: Unauthorized
  */
 // Scout save/unsave routes
-router.post('/:id/save', protect, authorize('scout'), savePlayer);
+router.post("/:id/save", protect, authorize("scout"), savePlayer);
 
 /**
  * @swagger
@@ -269,7 +272,7 @@ router.post('/:id/save', protect, authorize('scout'), savePlayer);
  *       401:
  *         description: Unauthorized
  */
-router.delete('/:id/save', protect, authorize('scout'), unsavePlayer);
+router.delete("/:id/save", protect, authorize("scout"), unsavePlayer);
 
 /**
  * @swagger
@@ -285,7 +288,7 @@ router.delete('/:id/save', protect, authorize('scout'), unsavePlayer);
  *       401:
  *         description: Unauthorized
  */
-router.get('/saved', protect, authorize('scout'), getSavedPlayers);
+router.get("/saved", protect, authorize("scout"), getSavedPlayers);
 
 /**
  * @swagger
@@ -310,7 +313,14 @@ router.get('/saved', protect, authorize('scout'), getSavedPlayers);
  *         description: Unauthorized
  */
 // Protected routes (Academy only)
-router.post('/', protect, authorize('academy'), requireApproved, createPlayerValidation, createPlayer);
+router.post(
+  "/",
+  protect,
+  authorize("academy"),
+  requireApproved,
+  createPlayerValidation,
+  createPlayer,
+);
 
 /**
  * @swagger
@@ -340,7 +350,13 @@ router.post('/', protect, authorize('academy'), requireApproved, createPlayerVal
  *       404:
  *         description: Player not found
  */
-router.put('/:id', protect, authorize('academy'), updatePlayerValidation, updatePlayer);
+router.put(
+  "/:id",
+  protect,
+  authorize("academy"),
+  updatePlayerValidation,
+  updatePlayer,
+);
 
 /**
  * @swagger
@@ -364,7 +380,6 @@ router.put('/:id', protect, authorize('academy'), updatePlayerValidation, update
  *       404:
  *         description: Player not found
  */
-router.delete('/:id', protect, authorize('academy'), deletePlayer);
+router.delete("/:id", protect, authorize("academy"), deletePlayer);
 
 module.exports = router;
-

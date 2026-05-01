@@ -1,8 +1,8 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
-const { updateProfile } = require('../controllers/profile.controller');
-const { protect } = require('../middleware/auth.middleware');
+const { updateProfile } = require("../controllers/profile.controller");
+const { protect } = require("../middleware/auth.middleware");
 
 /**
  * @swagger
@@ -36,6 +36,6 @@ const { protect } = require('../middleware/auth.middleware');
  *       403:
  *         description: Forbidden
  */
-router.put('/:id', protect, updateProfile);
+router.put("/:id", protect, updateProfile);
 
 module.exports = router;

@@ -1,9 +1,9 @@
-const { validationResult } = require('express-validator');
-const Player = require('../models/Player');
-const Academy = require('../models/Academy');
-const Video = require('../models/Video');
-const Scout = require('../models/Scout');
-const User = require('../models/User');
+const { validationResult } = require("express-validator");
+const Player = require("../models/Player");
+const Academy = require("../models/Academy");
+const Video = require("../models/Video");
+const Scout = require("../models/Scout");
+const User = require("../models/User");
 
 /**
  * @desc    Get all players with filtering and pagination
@@ -17,7 +17,7 @@ const getPlayers = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Build query - only active players from approved academies
-    const query = { status: 'active' };
+    const query = { status: "active" };
 
     // Filter by position
     if (req.query.position) {
@@ -33,11 +33,19 @@ const getPlayers = async (req, res) => {
     if (req.query.minAge || req.query.maxAge) {
       const today = new Date();
       if (req.query.maxAge) {
-        const minDate = new Date(today.getFullYear() - parseInt(req.query.maxAge) - 1, today.getMonth(), today.getDate());
+        const minDate = new Date(
+          today.getFullYear() - parseInt(req.query.maxAge) - 1,
+          today.getMonth(),
+          today.getDate(),
+        );
         query.dateOfBirth = { ...query.dateOfBirth, $gte: minDate };
       }
       if (req.query.minAge) {
-        const maxDate = new Date(today.getFullYear() - parseInt(req.query.minAge), today.getMonth(), today.getDate());
+        const maxDate = new Date(
+          today.getFullYear() - parseInt(req.query.minAge),
+          today.getMonth(),
+          today.getDate(),
+        );
         query.dateOfBirth = { ...query.dateOfBirth, $lte: maxDate };
       }
     }
@@ -52,19 +60,19 @@ const getPlayers = async (req, res) => {
 
     // Search by name
     if (req.query.search) {
-      query.fullName = { $regex: req.query.search, $options: 'i' };
+      query.fullName = { $regex: req.query.search, $options: "i" };
     }
 
     // Build sort
     let sort = { createdAt: -1 };
     if (req.query.sortBy) {
       const sortField = req.query.sortBy;
-      const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+      const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
       sort = { [sortField]: sortOrder };
     }
 
     const players = await Player.find(query)
-      .populate('academy', 'name region')
+      .populate("academy", "name region")
       .skip(skip)
       .limit(limit)
       .sort(sort);
@@ -72,7 +80,7 @@ const getPlayers = async (req, res) => {
     const total = await Player.countDocuments(query);
 
     // If user is a scout, track recently viewed
-    if (req.user && req.user.role === 'scout') {
+    if (req.user && req.user.role === "scout") {
       // This is handled in getPlayer for individual views
     }
 
@@ -85,10 +93,10 @@ const getPlayers = async (req, res) => {
       data: players,
     });
   } catch (error) {
-    console.error('Get players error:', error);
+    console.error("Get players error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -101,23 +109,23 @@ const getPlayers = async (req, res) => {
 const getPlayer = async (req, res) => {
   try {
     const player = await Player.findById(req.params.id)
-      .populate('academy', 'name region logoUrl')
+      .populate("academy", "name region logoUrl")
       .populate({
-        path: 'videos',
-        match: { privacy: 'public', processingStatus: 'analyzed' },
-        select: 'title thumbnailUrl videoType duration views createdAt',
+        path: "videos",
+        match: { privacy: "public", processingStatus: "analyzed" },
+        select: "title thumbnailUrl videoType duration views createdAt",
         options: { sort: { createdAt: -1 }, limit: 10 },
       });
 
     if (!player) {
       return res.status(404).json({
         success: false,
-        message: 'Player not found',
+        message: "Player not found",
       });
     }
 
     // Track view if user is a scout
-    if (req.user && req.user.role === 'scout') {
+    if (req.user && req.user.role === "scout") {
       const scout = await Scout.findOne({ user: req.user._id });
       if (scout) {
         await scout.addToRecentlyViewed(player._id);
@@ -129,10 +137,10 @@ const getPlayer = async (req, res) => {
       data: player,
     });
   } catch (error) {
-    console.error('Get player error:', error);
+    console.error("Get player error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -149,7 +157,7 @@ const createPlayer = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
+        message: "Validation failed",
         errors: errors.array(),
       });
     }
@@ -159,15 +167,15 @@ const createPlayer = async (req, res) => {
     if (!academy) {
       return res.status(404).json({
         success: false,
-        message: 'Academy profile not found',
+        message: "Academy profile not found",
       });
     }
 
     // Check if academy is approved
-    if (academy.registrationStatus !== 'approved') {
+    if (academy.registrationStatus !== "approved") {
       return res.status(403).json({
         success: false,
-        message: 'Your academy must be approved before adding players',
+        message: "Your academy must be approved before adding players",
       });
     }
 
@@ -177,7 +185,7 @@ const createPlayer = async (req, res) => {
     if (!primaryPosition) {
       return res.status(400).json({
         success: false,
-        message: 'Primary position is required',
+        message: "Primary position is required",
       });
     }
 
@@ -186,7 +194,7 @@ const createPlayer = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'An account with this email already exists.',
+        message: "An account with this email already exists.",
       });
     }
 
@@ -194,8 +202,8 @@ const createPlayer = async (req, res) => {
     playerUser = await User.create({
       email,
       password,
-      role: 'player',
-      status: 'approved',
+      role: "player",
+      status: "approved",
     });
 
     const playerData = {
@@ -207,13 +215,13 @@ const createPlayer = async (req, res) => {
       playingStyleTags: playerBody.playingStyleTags || [],
       technicalStrengths: playerBody.technicalStrengths,
       technicalWeaknesses: playerBody.technicalWeaknesses,
-      availabilityStatus: playerBody.availabilityStatus || 'Available',
+      availabilityStatus: playerBody.availabilityStatus || "Available",
       birthCertificateUrl: playerBody.birthCertificateUrl,
       passportUrl: playerBody.passportUrl,
       isAgeVerified: playerBody.isAgeVerified || false,
       academy: academy._id,
       user: playerUser._id,
-      verificationStatus: 'verified', // Auto-verified when created by academy
+      verificationStatus: "verified", // Auto-verified when created by academy
       verifiedBy: req.user._id,
       verifiedAt: new Date(),
     };
@@ -222,22 +230,22 @@ const createPlayer = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Player created successfully',
+      message: "Player created successfully",
       data: player,
     });
   } catch (error) {
-    console.error('Create player error:', error);
+    console.error("Create player error:", error);
     // Roll back created user if player creation fails
     if (playerUser) {
       try {
         await User.findByIdAndDelete(playerUser._id);
       } catch (cleanupError) {
-        console.error('Failed to roll back player user:', cleanupError);
+        console.error("Failed to roll back player user:", cleanupError);
       }
     }
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -253,7 +261,7 @@ const updatePlayer = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
+        message: "Validation failed",
         errors: errors.array(),
       });
     }
@@ -263,7 +271,7 @@ const updatePlayer = async (req, res) => {
     if (!academy) {
       return res.status(404).json({
         success: false,
-        message: 'Academy profile not found',
+        message: "Academy profile not found",
       });
     }
 
@@ -276,32 +284,32 @@ const updatePlayer = async (req, res) => {
     if (!player) {
       return res.status(404).json({
         success: false,
-        message: 'Player not found or you do not have permission to update',
+        message: "Player not found or you do not have permission to update",
       });
     }
 
     // Fields that can be updated
     const allowedFields = [
-      'fullName',
-      'dateOfBirth',
-      'position',
-      'primaryPosition',
-      'secondaryPosition',
-      'strongFoot',
-      'height',
-      'weight',
-      'jerseyNumber',
-      'profileImageUrl',
-      'bio',
-      'clubHistory',
-      'playingStyleTags',
-      'technicalStrengths',
-      'technicalWeaknesses',
-      'availabilityStatus',
-      'birthCertificateUrl',
-      'passportUrl',
-      'isAgeVerified',
-      'status',
+      "fullName",
+      "dateOfBirth",
+      "position",
+      "primaryPosition",
+      "secondaryPosition",
+      "strongFoot",
+      "height",
+      "weight",
+      "jerseyNumber",
+      "profileImageUrl",
+      "bio",
+      "clubHistory",
+      "playingStyleTags",
+      "technicalStrengths",
+      "technicalWeaknesses",
+      "availabilityStatus",
+      "birthCertificateUrl",
+      "passportUrl",
+      "isAgeVerified",
+      "status",
     ];
 
     allowedFields.forEach((field) => {
@@ -322,14 +330,14 @@ const updatePlayer = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Player updated successfully',
+      message: "Player updated successfully",
       data: player,
     });
   } catch (error) {
-    console.error('Update player error:', error);
+    console.error("Update player error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -346,7 +354,7 @@ const deletePlayer = async (req, res) => {
     if (!academy) {
       return res.status(404).json({
         success: false,
-        message: 'Academy profile not found',
+        message: "Academy profile not found",
       });
     }
 
@@ -359,23 +367,23 @@ const deletePlayer = async (req, res) => {
     if (!player) {
       return res.status(404).json({
         success: false,
-        message: 'Player not found or you do not have permission to delete',
+        message: "Player not found or you do not have permission to delete",
       });
     }
 
     // Soft delete - archive instead of removing
-    player.status = 'archived';
+    player.status = "archived";
     await player.save();
 
     res.status(200).json({
       success: true,
-      message: 'Player archived successfully',
+      message: "Player archived successfully",
     });
   } catch (error) {
-    console.error('Delete player error:', error);
+    console.error("Delete player error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -392,7 +400,7 @@ const getPlayerVideos = async (req, res) => {
     if (!player) {
       return res.status(404).json({
         success: false,
-        message: 'Player not found',
+        message: "Player not found",
       });
     }
 
@@ -404,9 +412,9 @@ const getPlayerVideos = async (req, res) => {
     const query = { player: player._id };
 
     if (!req.user) {
-      query.privacy = 'public';
-    } else if (req.user.role === 'scout') {
-      query.privacy = { $in: ['public', 'scout_only'] };
+      query.privacy = "public";
+    } else if (req.user.role === "scout") {
+      query.privacy = { $in: ["public", "scout_only"] };
     }
     // Academy owners can see all their player's videos
 
@@ -415,7 +423,7 @@ const getPlayerVideos = async (req, res) => {
     }
 
     const videos = await Video.find(query)
-      .populate('analysis')
+      .populate("analysis")
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
@@ -431,10 +439,10 @@ const getPlayerVideos = async (req, res) => {
       data: videos,
     });
   } catch (error) {
-    console.error('Get player videos error:', error);
+    console.error("Get player videos error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -453,7 +461,7 @@ const savePlayer = async (req, res) => {
     if (!player) {
       return res.status(404).json({
         success: false,
-        message: 'Player not found',
+        message: "Player not found",
       });
     }
 
@@ -461,7 +469,7 @@ const savePlayer = async (req, res) => {
     if (!scout) {
       return res.status(404).json({
         success: false,
-        message: 'Scout profile not found',
+        message: "Scout profile not found",
       });
     }
 
@@ -469,7 +477,7 @@ const savePlayer = async (req, res) => {
     if (scout.savedPlayers.includes(playerId)) {
       return res.status(400).json({
         success: false,
-        message: 'Player is already saved',
+        message: "Player is already saved",
       });
     }
 
@@ -477,13 +485,13 @@ const savePlayer = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Player saved to watchlist',
+      message: "Player saved to watchlist",
     });
   } catch (error) {
-    console.error('Save player error:', error);
+    console.error("Save player error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -501,7 +509,7 @@ const unsavePlayer = async (req, res) => {
     if (!scout) {
       return res.status(404).json({
         success: false,
-        message: 'Scout profile not found',
+        message: "Scout profile not found",
       });
     }
 
@@ -509,13 +517,13 @@ const unsavePlayer = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Player removed from watchlist',
+      message: "Player removed from watchlist",
     });
   } catch (error) {
-    console.error('Unsave player error:', error);
+    console.error("Unsave player error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -527,19 +535,18 @@ const unsavePlayer = async (req, res) => {
  */
 const getSavedPlayers = async (req, res) => {
   try {
-    const scout = await Scout.findOne({ user: req.user._id })
-      .populate({
-        path: 'savedPlayers',
-        populate: {
-          path: 'academy',
-          select: 'name region',
-        },
-      });
+    const scout = await Scout.findOne({ user: req.user._id }).populate({
+      path: "savedPlayers",
+      populate: {
+        path: "academy",
+        select: "name region",
+      },
+    });
 
     if (!scout) {
       return res.status(404).json({
         success: false,
-        message: 'Scout profile not found',
+        message: "Scout profile not found",
       });
     }
 
@@ -549,10 +556,10 @@ const getSavedPlayers = async (req, res) => {
       data: scout.savedPlayers,
     });
   } catch (error) {
-    console.error('Get saved players error:', error);
+    console.error("Get saved players error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -568,4 +575,3 @@ module.exports = {
   unsavePlayer,
   getSavedPlayers,
 };
-

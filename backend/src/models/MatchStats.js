@@ -1,16 +1,16 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const matchStatsSchema = new mongoose.Schema(
   {
     match: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Match',
-      required: [true, 'Match is required'],
+      ref: "Match",
+      required: [true, "Match is required"],
     },
     player: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Player',
-      required: [true, 'Player is required'],
+      ref: "Player",
+      required: [true, "Player is required"],
     },
     // Performance stats
     goals: {
@@ -28,13 +28,13 @@ const matchStatsSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: 120,
-      alias: 'minutes_played',
+      alias: "minutes_played",
     },
     gamesStarted: {
       type: Number,
       default: 0,
       min: 0,
-      alias: 'games_started',
+      alias: "games_started",
     },
     // Cards
     yellowCards: {
@@ -42,18 +42,18 @@ const matchStatsSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: 2,
-      alias: 'yellow_cards',
+      alias: "yellow_cards",
     },
     redCard: {
       type: Boolean,
       default: false,
-      alias: 'red_card',
+      alias: "red_card",
     },
     redCards: {
       type: Number,
       default: 0,
       min: 0,
-      alias: 'red_cards',
+      alias: "red_cards",
     },
     // Additional stats
     shots: {
@@ -98,29 +98,29 @@ const matchStatsSchema = new mongoose.Schema(
     // Submission and verification
     submittedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
     },
     approvalStatus: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending',
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
     },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
     },
     approvedAt: {
       type: Date,
     },
     verifiedByAcademyId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Academy',
-      alias: 'verified_by_academy_id',
+      ref: "Academy",
+      alias: "verified_by_academy_id",
     },
     isVerified: {
       type: Boolean,
       default: false,
-      alias: 'is_verified',
+      alias: "is_verified",
     },
     // Rating (optional, can be set by coach/scout)
     rating: {
@@ -130,32 +130,32 @@ const matchStatsSchema = new mongoose.Schema(
     },
     notes: {
       type: String,
-      maxlength: [500, 'Notes cannot exceed 500 characters'],
+      maxlength: [500, "Notes cannot exceed 500 characters"],
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Ensure unique player per match
 matchStatsSchema.index({ match: 1, player: 1 }, { unique: true });
 
 // Post save hook to update player aggregated stats
-matchStatsSchema.post('save', async function () {
-  const Player = mongoose.model('Player');
-  const MatchStats = mongoose.model('MatchStats');
+matchStatsSchema.post("save", async function () {
+  const Player = mongoose.model("Player");
+  const MatchStats = mongoose.model("MatchStats");
 
   // Aggregate all stats for this player
   const stats = await MatchStats.aggregate([
-    { $match: { player: this.player, approvalStatus: 'approved' } },
+    { $match: { player: this.player, approvalStatus: "approved" } },
     {
       $group: {
-        _id: '$player',
-        totalGoals: { $sum: '$goals' },
-        totalAssists: { $sum: '$assists' },
+        _id: "$player",
+        totalGoals: { $sum: "$goals" },
+        totalAssists: { $sum: "$assists" },
         totalMatches: { $sum: 1 },
-        totalMinutesPlayed: { $sum: '$minutesPlayed' },
+        totalMinutesPlayed: { $sum: "$minutesPlayed" },
       },
     },
   ]);
@@ -170,5 +170,4 @@ matchStatsSchema.post('save', async function () {
   }
 });
 
-module.exports = mongoose.model('MatchStats', matchStatsSchema);
-
+module.exports = mongoose.model("MatchStats", matchStatsSchema);
