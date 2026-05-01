@@ -8,6 +8,10 @@ const {
   getMe,
   updatePassword,
   logout,
+  verifyEmail,
+  resendVerification,
+  forgotPassword,
+  resetPassword,
 } = require('../controllers/auth.controller');
 
 const { protect } = require('../middleware/auth.middleware');
@@ -179,6 +183,131 @@ router.put('/updatepassword', protect, updatePasswordValidation, updatePassword)
  *         description: Unauthorized
  */
 router.post('/logout', protect, logout);
+
+/**
+ * @swagger
+ * /auth/verify-email/{token}:
+ *   get:
+ *     summary: Verify email address via token link
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Raw verification token from email link
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.get('/verify-email/:token', verifyEmail);
+
+/**
+ * @swagger
+ * /auth/resend-verification:
+ *   post:
+ *     summary: Resend email verification link
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Verification email sent (if account exists and is unverified)
+ */
+router.post(
+  '/resend-verification',
+  [
+    body('email')
+      .isEmail().withMessage('Please provide a valid email')
+      .normalizeEmail(),
+  ],
+  resendVerification
+);
+
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Request a password reset email
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Reset email sent (if account exists)
+ */
+router.post(
+  '/forgot-password',
+  [
+    body('email')
+      .isEmail().withMessage('Please provide a valid email')
+      .normalizeEmail(),
+  ],
+  forgotPassword
+);
+
+/**
+ * @swagger
+ * /auth/reset-password/{token}:
+ *   put:
+ *     summary: Reset password using token from email
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Raw reset token from email link
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Password reset successfully — returns new JWT
+ *       400:
+ *         description: Invalid/expired token or weak password
+ */
+router.put(
+  '/reset-password/:token',
+  [
+    body('password')
+      .isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  ],
+  resetPassword
+);
 
 module.exports = router;
 
