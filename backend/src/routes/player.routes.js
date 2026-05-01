@@ -14,6 +14,8 @@ const {
   getSavedPlayers,
 } = require('../controllers/player.controller');
 
+const { PLAYER_POSITION_VALUES, AVAILABILITY_STATUSES } = require('../utils/profile.constants');
+
 const { protect, optionalAuth } = require('../middleware/auth.middleware');
 const { authorize, requireApproved } = require('../middleware/role.middleware');
 
@@ -40,10 +42,17 @@ const createPlayerValidation = [
     .isISO8601()
     .withMessage('Please provide a valid date'),
   body('position')
-    .notEmpty()
-    .withMessage('Position is required')
-    .isIn(['goalkeeper', 'defender', 'midfielder', 'forward'])
+    .optional()
+    .isIn(PLAYER_POSITION_VALUES)
     .withMessage('Invalid position'),
+  body('primaryPosition')
+    .optional()
+    .isIn(PLAYER_POSITION_VALUES)
+    .withMessage('Invalid primary position'),
+  body('secondaryPosition')
+    .optional()
+    .isIn([...PLAYER_POSITION_VALUES, ''])
+    .withMessage('Invalid secondary position'),
   body('strongFoot')
     .optional()
     .isIn(['left', 'right', 'both'])
@@ -60,6 +69,22 @@ const createPlayerValidation = [
     .optional()
     .isInt({ min: 1, max: 99 })
     .withMessage('Jersey number must be between 1 and 99'),
+  body('availabilityStatus')
+    .optional()
+    .isIn(AVAILABILITY_STATUSES)
+    .withMessage('Invalid availability status'),
+  body('playingStyleTags')
+    .optional()
+    .isArray()
+    .withMessage('Playing style tags must be an array'),
+  body('clubHistory')
+    .optional()
+    .isArray()
+    .withMessage('Club history must be an array'),
+  body('isAgeVerified')
+    .optional()
+    .isBoolean()
+    .withMessage('isAgeVerified must be a boolean'),
 ];
 
 const updatePlayerValidation = [
@@ -73,8 +98,16 @@ const updatePlayerValidation = [
     .withMessage('Please provide a valid date'),
   body('position')
     .optional()
-    .isIn(['goalkeeper', 'defender', 'midfielder', 'forward'])
+    .isIn(PLAYER_POSITION_VALUES)
     .withMessage('Invalid position'),
+  body('primaryPosition')
+    .optional()
+    .isIn(PLAYER_POSITION_VALUES)
+    .withMessage('Invalid primary position'),
+  body('secondaryPosition')
+    .optional()
+    .isIn([...PLAYER_POSITION_VALUES, ''])
+    .withMessage('Invalid secondary position'),
   body('strongFoot')
     .optional()
     .isIn(['left', 'right', 'both'])
@@ -91,6 +124,22 @@ const updatePlayerValidation = [
     .optional()
     .isLength({ max: 500 })
     .withMessage('Bio cannot exceed 500 characters'),
+  body('availabilityStatus')
+    .optional()
+    .isIn(AVAILABILITY_STATUSES)
+    .withMessage('Invalid availability status'),
+  body('playingStyleTags')
+    .optional()
+    .isArray()
+    .withMessage('Playing style tags must be an array'),
+  body('clubHistory')
+    .optional()
+    .isArray()
+    .withMessage('Club history must be an array'),
+  body('isAgeVerified')
+    .optional()
+    .isBoolean()
+    .withMessage('isAgeVerified must be a boolean'),
 ];
 
 /**

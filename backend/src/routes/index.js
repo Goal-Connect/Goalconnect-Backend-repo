@@ -9,6 +9,7 @@ const videoRoutes = require('./video.routes');
 const matchRoutes = require('./match.routes');
 const adminRoutes = require('./admin.routes');
 const messageRoutes = require('./message.routes');
+const profileRoutes = require('./profile.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -19,6 +20,7 @@ router.use('/videos', videoRoutes);
 router.use('/matches', matchRoutes);
 router.use('/admin', adminRoutes);
 router.use('/messages', messageRoutes);
+router.use('/profiles', profileRoutes);
 
 /**
  * @swagger

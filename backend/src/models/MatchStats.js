@@ -28,6 +28,13 @@ const matchStatsSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: 120,
+      alias: 'minutes_played',
+    },
+    gamesStarted: {
+      type: Number,
+      default: 0,
+      min: 0,
+      alias: 'games_started',
     },
     // Cards
     yellowCards: {
@@ -35,10 +42,18 @@ const matchStatsSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: 2,
+      alias: 'yellow_cards',
     },
     redCard: {
       type: Boolean,
       default: false,
+      alias: 'red_card',
+    },
+    redCards: {
+      type: Number,
+      default: 0,
+      min: 0,
+      alias: 'red_cards',
     },
     // Additional stats
     shots: {
@@ -96,6 +111,16 @@ const matchStatsSchema = new mongoose.Schema(
     },
     approvedAt: {
       type: Date,
+    },
+    verifiedByAcademyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Academy',
+      alias: 'verified_by_academy_id',
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+      alias: 'is_verified',
     },
     // Rating (optional, can be set by coach/scout)
     rating: {

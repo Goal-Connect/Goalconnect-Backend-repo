@@ -172,6 +172,14 @@ const createPlayer = async (req, res) => {
     }
 
     const { email, password, ...playerBody } = req.body;
+    const primaryPosition = playerBody.primaryPosition || playerBody.position;
+
+    if (!primaryPosition) {
+      return res.status(400).json({
+        success: false,
+        message: 'Primary position is required',
+      });
+    }
 
     // Ensure email is not already taken
     const existingUser = await User.findOne({ email });
@@ -192,6 +200,17 @@ const createPlayer = async (req, res) => {
 
     const playerData = {
       ...playerBody,
+      position: primaryPosition,
+      primaryPosition,
+      secondaryPosition: playerBody.secondaryPosition,
+      clubHistory: playerBody.clubHistory || [],
+      playingStyleTags: playerBody.playingStyleTags || [],
+      technicalStrengths: playerBody.technicalStrengths,
+      technicalWeaknesses: playerBody.technicalWeaknesses,
+      availabilityStatus: playerBody.availabilityStatus || 'Available',
+      birthCertificateUrl: playerBody.birthCertificateUrl,
+      passportUrl: playerBody.passportUrl,
+      isAgeVerified: playerBody.isAgeVerified || false,
       academy: academy._id,
       user: playerUser._id,
       verificationStatus: 'verified', // Auto-verified when created by academy
@@ -266,6 +285,7 @@ const updatePlayer = async (req, res) => {
       'fullName',
       'dateOfBirth',
       'position',
+      'primaryPosition',
       'secondaryPosition',
       'strongFoot',
       'height',
@@ -273,6 +293,14 @@ const updatePlayer = async (req, res) => {
       'jerseyNumber',
       'profileImageUrl',
       'bio',
+      'clubHistory',
+      'playingStyleTags',
+      'technicalStrengths',
+      'technicalWeaknesses',
+      'availabilityStatus',
+      'birthCertificateUrl',
+      'passportUrl',
+      'isAgeVerified',
       'status',
     ];
 
@@ -281,6 +309,14 @@ const updatePlayer = async (req, res) => {
         player[field] = req.body[field];
       }
     });
+
+    if (req.body.primaryPosition && !req.body.position) {
+      player.position = req.body.primaryPosition;
+    }
+
+    if (req.body.position && !req.body.primaryPosition) {
+      player.primaryPosition = req.body.position;
+    }
 
     await player.save();
 

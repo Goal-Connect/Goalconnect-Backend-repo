@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema(
       enum: ['admin', 'academy', 'scout', 'player'],
       required: [true, 'Role is required'],
     },
+    isAcademyRep: {
+      type: Boolean,
+      default: false,
+    },
     status: {
       type: String,
       enum: ['pending', 'verified', 'approved', 'suspended', 'rejected'],

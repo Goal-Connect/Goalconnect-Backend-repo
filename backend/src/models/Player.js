@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { PLAYER_POSITION_VALUES, AVAILABILITY_STATUSES } = require('../utils/profile.constants');
 
 const playerSchema = new mongoose.Schema(
   {
@@ -22,12 +23,15 @@ const playerSchema = new mongoose.Schema(
     },
     position: {
       type: String,
-      enum: ['goalkeeper', 'defender', 'midfielder', 'forward'],
-      required: [true, 'Position is required'],
+      enum: PLAYER_POSITION_VALUES,
+    },
+    primaryPosition: {
+      type: String,
+      enum: PLAYER_POSITION_VALUES,
     },
     secondaryPosition: {
       type: String,
-      enum: ['goalkeeper', 'defender', 'midfielder', 'forward', ''],
+      enum: [...PLAYER_POSITION_VALUES, ''],
     },
     strongFoot: {
       type: String,
@@ -59,6 +63,72 @@ const playerSchema = new mongoose.Schema(
     nationality: {
       type: String,
       trim: true,
+    },
+    clubHistory: [
+      {
+        clubName: {
+          type: String,
+          trim: true,
+        },
+        startDate: {
+          type: Date,
+        },
+        endDate: {
+          type: Date,
+        },
+      },
+    ],
+    playingStyleTags: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    technicalStrengths: {
+      type: String,
+      maxlength: [4000, 'Technical strengths cannot exceed 4000 characters'],
+    },
+    technicalWeaknesses: {
+      type: String,
+      maxlength: [4000, 'Technical weaknesses cannot exceed 4000 characters'],
+    },
+    availabilityStatus: {
+      type: String,
+      enum: AVAILABILITY_STATUSES,
+      default: 'Available',
+    },
+    birthCertificateUrl: {
+      type: String,
+    },
+    passportUrl: {
+      type: String,
+    },
+    isAgeVerified: {
+      type: Boolean,
+      default: false,
+    },
+    disciplinaryRecord: {
+      yellowCards: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      redCards: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      notes: {
+        type: String,
+        maxlength: [1000, 'Disciplinary notes cannot exceed 1000 characters'],
+      },
+      updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      updatedAt: {
+        type: Date,
+      },
     },
     status: {
       type: String,
@@ -101,6 +171,18 @@ const playerSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+playerSchema.pre('validate', function (next) {
+  if (!this.primaryPosition && this.position) {
+    this.primaryPosition = this.position;
+  }
+
+  if (!this.position && this.primaryPosition) {
+    this.position = this.primaryPosition;
+  }
+
+  next();
+});
 
 // Virtual for calculating age
 playerSchema.virtual('age').get(function () {
