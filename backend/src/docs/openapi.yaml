@@ -3,14 +3,47 @@ info:
   title: GoalConnect Backend API
   version: 1.0.0
   description: |
-    REST API for GoalConnect.
+    ## GoalConnect REST API
 
-    Main features:
-    - JWT authentication
-    - Academy and scout workflows
-    - Player, match, and video management
-    - Admin moderation
-    - Direct messaging
+    Digital Talent Scouting Platform for Ethiopian Football.
+
+    ### Roles
+    | Role    | Description |
+    |---------|-------------|
+    | admin   | Platform administrator |
+    | academy | Football academy that manages players |
+    | scout   | Talent scout who discovers players |
+    | player  | Individual footballer |
+
+    ### Authentication
+    All protected routes require a **Bearer JWT** token in the `Authorization` header:
+    ```
+    Authorization: Bearer <token>
+    ```
+    Tokens are obtained from `/auth/login` or `/auth/register`.
+
+    ### Real-time Messaging (Socket.IO)
+    Core messaging is handled via **Socket.IO** at `ws://localhost:5000`.
+    Connect with JWT in the handshake:
+    ```js
+    const socket = io('http://localhost:5000', {
+      auth: { token: '<jwt>' }
+    });
+    ```
+    **Client → Server events:**
+    - `message:send` — `{ toUserId, content, sharedVideo? }`
+    - `conversation:history` — `{ withUserId, limit? }`
+    - `message:edit` — `{ messageId, newContent }`
+    - `message:delete` — `{ messageId }`
+
+    **Server → Client events:**
+    - `connection:success` — `{ userId, role }`
+    - `message:received` — full message object
+    - `message:edited` — updated message object
+    - `message:deleted` — `{ _id }`
+
+    > Only a **scout** can start a new conversation (first message).
+    > After that, both parties can reply.
 servers:
   - url: http://localhost:5000/api
     description: Local development server
@@ -36,6 +69,7 @@ components:
   schemas:
     ObjectId:
       type: string
+      pattern: '^[a-f\d]{24}$'
       example: 680df8bf8f0e823a9ca20e99
 
     ApiError:
@@ -51,7 +85,50 @@ components:
           type: array
           items:
             type: object
-            additionalProperties: true
+            properties:
+              type:
+                type: string
+                example: field
+              msg:
+                type: string
+                example: Email is required
+              path:
+                type: string
+                example: email
+              location:
+                type: string
+                example: body
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login successful
+        token:
+          type: string
+          description: JWT bearer token — include in Authorization header for all protected requests
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          type: object
+          properties:
+            id:
+              $ref: "#/components/schemas/ObjectId"
+            email:
+              type: string
+              format: email
+              example: scout@example.com
+            role:
+              type: string
+              enum: [admin, academy, scout, player]
+              example: scout
+            status:
+              type: string
+              enum: [pending, verified, approved, suspended, rejected]
+              example: approved
 
     UserSummary:
       type: object
@@ -61,12 +138,147 @@ components:
         email:
           type: string
           format: email
+          example: academy@example.com
         role:
           type: string
           enum: [admin, academy, scout, player]
         status:
           type: string
           enum: [pending, verified, approved, suspended, rejected]
+        emailVerified:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Comment:
+      type: object
+      properties:
+        _id:
+          $ref: "#/components/schemas/ObjectId"
+        text:
+          type: string
+          example: Great footwork!
+          maxLength: 1000
+        user:
+          type: object
+          properties:
+            _id:
+              $ref: "#/components/schemas/ObjectId"
+            fullName:
+              type: string
+              example: John Scout
+            profileImageUrl:
+              type: string
+              example: https://res.cloudinary.com/...
+            role:
+              type: string
+              enum: [admin, academy, scout, player]
+        video:
+          $ref: "#/components/schemas/ObjectId"
+        likes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ObjectId"
+          description: Array of User IDs who liked this comment
+        parentComment:
+          allOf:
+            - $ref: "#/components/schemas/ObjectId"
+          nullable: true
+          description: ID of parent comment if this is a reply, null for top-level
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Comment"
+          description: Nested reply comments
+        createdAt:
+          type: string
+          format: date-time
+
+    FeedItem:
+      type: object
+      description: A single item in the video discovery feed
+      properties:
+        _id:
+          $ref: "#/components/schemas/ObjectId"
+        video:
+          type: object
+          properties:
+            _id:
+              $ref: "#/components/schemas/ObjectId"
+            title:
+              type: string
+              example: Amazing dribbling skills
+            description:
+              type: string
+            privacy:
+              type: string
+              enum: [public, scout_only, private]
+            uploadedBy:
+              $ref: "#/components/schemas/ObjectId"
+            videoUrl:
+              type: string
+              example: https://res.cloudinary.com/dwzxqbwv1/video/upload/v1/goalconnect_videos/abc123.mp4
+            thumbnailUrl:
+              type: string
+            views:
+              type: integer
+              example: 142
+            likes:
+              type: array
+              items:
+                $ref: "#/components/schemas/ObjectId"
+            processingStatus:
+              type: string
+              enum: [uploaded, processing, analyzed, failed]
+            duration:
+              type: integer
+              description: Duration in seconds
+        player:
+          type: object
+          description: Player the video belongs to (null for academy-generic videos)
+          nullable: true
+          properties:
+            _id:
+              $ref: "#/components/schemas/ObjectId"
+            fullName:
+              type: string
+              example: Abebe Girma
+            position:
+              type: string
+              example: Winger
+            dateOfBirth:
+              type: string
+              format: date-time
+            profileImageUrl:
+              type: string
+            academy:
+              type: object
+              properties:
+                _id:
+                  $ref: "#/components/schemas/ObjectId"
+                name:
+                  type: string
+                  example: Addis FC Academy
+                region:
+                  type: string
+                  example: Addis Ababa
+        academy:
+          type: object
+          nullable: true
+          description: Academy extracted from player.academy
+          properties:
+            _id:
+              $ref: "#/components/schemas/ObjectId"
+            name:
+              type: string
+            region:
+              type: string
+        isSaved:
+          type: boolean
+          example: false
+          description: Whether the current user has saved this player (always false for now)
 
     Academy:
       type: object
@@ -389,39 +601,118 @@ components:
 
     UploadVideoRequest:
       type: object
-      required: [playerId, title, videoUrl, videoType]
+      description: |
+        **Multipart form-data** request — use `Content-Type: multipart/form-data`.
+        The actual video file is sent in the `video` field.
+        `playerId` is optional for academies (creates a generic academy video).
+        Players uploading always default to their own profile.
+      required: [title, videoType, video]
       properties:
-        playerId:
-          $ref: "#/components/schemas/ObjectId"
+        video:
+          type: string
+          format: binary
+          description: The video file to upload. Accepted formats — mp4, mkv, mov, avi. Max 100 MB.
         title:
           type: string
+          minLength: 2
+          maxLength: 100
+          example: Abebe – Dribbling Highlights vs Dire Dawa FC
         description:
           type: string
-        videoUrl:
-          type: string
+          maxLength: 500
+          example: Full dribbling drill session recorded at training on 2025-03-15
         videoType:
           type: string
           enum: [highlight, drill, match]
+          example: drill
+          description: |
+            - `highlight` — Short best-of clip
+            - `drill` — Training drill (enables CV analysis)
+            - `match` — Full or partial match footage
         drillType:
           type: string
           enum: [dribbling, shooting, passing, speed, agility, other]
+          example: dribbling
+          description: Required when videoType is `drill`
         privacy:
           type: string
           enum: [public, scout_only, private]
+          default: public
+          example: scout_only
+          description: |
+            - `public` — Visible to everyone
+            - `scout_only` — Visible only to approved scouts and admins
+            - `private` — Visible only to the owning academy
+        playerId:
+          allOf:
+            - $ref: "#/components/schemas/ObjectId"
+          description: |
+            (Academy only) ID of the player this video belongs to.
+            Must be a player in the academy's roster.
+            Omit to upload as a generic academy video.
 
     UpdateVideoRequest:
       type: object
+      description: All fields are optional — send only what you want to change.
       properties:
         title:
           type: string
+          minLength: 2
+          maxLength: 100
+          example: Updated title — Abebe Sprint Drill
         description:
           type: string
+          maxLength: 500
+          example: Updated description with more context
         drillType:
           type: string
           enum: [dribbling, shooting, passing, speed, agility, other]
+          example: speed
         privacy:
           type: string
           enum: [public, scout_only, private]
+          example: public
+
+    AddCommentRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          example: Incredible technique, great future ahead!
+        parentComment:
+          allOf:
+            - $ref: "#/components/schemas/ObjectId"
+          nullable: true
+          description: |
+            Set to the `_id` of an existing comment to post a **reply**.
+            Omit (or set to null) for a **top-level** comment.
+          example: 680df8bf8f0e823a9ca20e99
+
+    SendMessageRequest:
+      type: object
+      required: [receiverId]
+      description: |
+        Send a direct message to another user.
+        **Rule:** Only a scout can start a new conversation, and only with a player.
+        After the first message is sent, both parties can reply freely.
+      properties:
+        receiverId:
+          allOf:
+            - $ref: "#/components/schemas/ObjectId"
+          description: The User `_id` of the recipient (not the Player or Scout profile ID)
+          example: 680df8bf8f0e823a9ca20e99
+        content:
+          type: string
+          maxLength: 2000
+          example: Hello Abebe, I would love to discuss a scouting opportunity with you.
+        sharedVideo:
+          allOf:
+            - $ref: "#/components/schemas/ObjectId"
+          description: Optional — share a video in the message. ID of the Video document.
+          example: 681abc123def456789012345
 
     CreateMatchRequest:
       type: object
@@ -545,15 +836,6 @@ components:
           items:
             type: string
 
-    SendMessageRequest:
-      type: object
-      required: [receiverId, content]
-      properties:
-        receiverId:
-          $ref: "#/components/schemas/ObjectId"
-        content:
-          type: string
-          maxLength: 2000
 
 paths:
   /health:
@@ -567,55 +849,168 @@ paths:
   /auth/register:
     post:
       tags: [Auth]
-      summary: Register a new academy or scout user
+      summary: Register a new academy or scout
+      description: |
+        Creates a new user account and a role-specific profile.
+        - For **academy** role: also creates an `Academy` profile (`registrationStatus: awaiting_approval`)
+        - For **scout** role: also creates a `Scout` profile
+
+        A **verification email** and **welcome email** are sent automatically.
+        The returned JWT is valid immediately — the user can make API calls before verifying their email,
+        but certain protected resources may require `emailVerified: true`.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/RegisterRequest"
+            examples:
+              academy:
+                summary: Register an academy
+                value:
+                  email: addisfc@example.com
+                  password: secret123
+                  role: academy
+                  name: Addis FC Academy
+                  region: Addis Ababa
+                  woreda: Bole
+                  ownerName: Tesfaye Alemu
+                  contactPhone: "+251911234567"
+              scout:
+                summary: Register a scout
+                value:
+                  email: scout@example.com
+                  password: secret123
+                  role: scout
+                  fullName: John Mwangi
+                  organization: AFC Talent Agency
+                  country: Kenya
+                  phone: "+254712345678"
       responses:
         "201":
-          description: Registration successful
+          description: Registration successful — returns JWT and user summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
         "400":
-          description: Validation error
+          description: Validation error or email already exists
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+              examples:
+                emailTaken:
+                  summary: Email already registered
+                  value:
+                    success: false
+                    message: An account with this email already exists.
+                validationFail:
+                  summary: Missing required fields
+                  value:
+                    success: false
+                    message: Validation failed
+                    errors:
+                      - type: field
+                        msg: Please provide a valid email
+                        path: email
+                        location: body
 
   /auth/login:
     post:
       tags: [Auth]
-      summary: Login and get JWT token
+      summary: Login and receive a JWT token
+      description: |
+        Authenticates the user and returns a signed JWT.
+        A **login security alert email** is sent to the user (non-blocking).
+
+        **Suspended** and **rejected** accounts are blocked from logging in.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: scout@example.com
+              password: secret123
       responses:
         "200":
-          description: Login successful
+          description: Login successful — returns JWT and user summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "401":
-          description: Invalid credentials
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                success: false
+                message: Invalid email or password
+        "403":
+          description: Account suspended or rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                success: false
+                message: Your account has been suspended. Please contact support.
 
   /auth/me:
     get:
       tags: [Auth]
-      summary: Get current authenticated user and role profile
+      summary: Get current authenticated user + role profile
+      description: |
+        Returns the authenticated user and their role-specific profile:
+        - **academy** → includes `Academy` document
+        - **scout** → includes `Scout` document
+        - **player** → includes `Player` document
+        - **admin** → profile is null
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Current user profile
+          description: Current user and profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/UserSummary"
+                      profile:
+                        description: The Academy, Scout, or Player document for this user
+                        nullable: true
+                        type: object
+                        additionalProperties: true
         "401":
-          description: Unauthorized
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 
   /auth/updatepassword:
     put:
       tags: [Auth]
-      summary: Update current user password
+      summary: Change password (while logged in)
+      description: The current password is verified before setting the new one. Returns a fresh JWT.
       security:
         - bearerAuth: []
       requestBody:
@@ -624,23 +1019,218 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/UpdatePasswordRequest"
+            example:
+              currentPassword: oldSecret123
+              newPassword: newSecret456
       responses:
         "200":
-          description: Password updated
+          description: Password updated — returns new JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
         "400":
           description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "401":
-          description: Unauthorized
+          description: Current password is incorrect or token invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                success: false
+                message: Current password is incorrect
 
   /auth/logout:
     post:
       tags: [Auth]
-      summary: Logout current user (client token removal)
+      summary: Logout (client-side token removal)
+      description: |
+        JWTs are stateless — this endpoint simply returns a success response.
+        The client must delete the token from `localStorage` / cookies.
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Logout successful
+          description: Logout acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logged out successfully. Please remove the token from client storage.
+
+  /auth/verify-email/{token}:
+    get:
+      tags: [Auth]
+      summary: Verify email address using token from email link
+      description: |
+        The frontend receives the raw token via the `?verify_token=` query param and calls this endpoint.
+        On success `emailVerified` is set to `true` on the user document.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+          description: Raw (unhashed) verification token extracted from the email link URL
+          example: a3f1c2d4e5b6789012345678abcdef1234567890abcdef1234567890abcdef12
+      responses:
+        "200":
+          description: Email verified (or already verified)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Email verified successfully! You can now log in.
+        "400":
+          description: Token invalid or not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                success: false
+                message: Invalid or expired verification link. Please request a new one.
+
+  /auth/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Resend email verification link
+      description: |
+        Re-generates the verification token and sends a new email.
+        Always returns HTTP 200 to prevent user enumeration (even if email not found).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: scout@example.com
+      responses:
+        "200":
+          description: Verification email sent (if account exists and is unverified)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: If an unverified account with that email exists, a verification link has been sent.
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request a password reset email
+      description: |
+        Generates a secure reset token (expires in **10 minutes**) and emails a reset link.
+        Always returns HTTP 200 to prevent user enumeration.
+
+        The frontend reads `?reset_token=<token>` from the URL and passes it to `/auth/reset-password/:token`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: scout@example.com
+      responses:
+        "200":
+          description: Reset email sent (if account exists)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: If an account with that email exists, a password reset link has been sent.
+
+  /auth/reset-password/{token}:
+    put:
+      tags: [Auth]
+      summary: Reset password using token from email
+      description: |
+        Validates the raw reset token (checked against SHA-256 hash in DB) and its expiry.
+        On success, sets the new password and returns a fresh JWT so the user is immediately logged in.
+
+        The token is **single-use** — it is cleared from the DB after use.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+          description: Raw reset token from the `?reset_token=` query param in the email link
+          example: a3f1c2d4e5b6789012345678abcdef1234567890abcdef1234567890abcdef12
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  minLength: 6
+                  example: myNewSecurePass99
+      responses:
+        "200":
+          description: Password reset — returns new JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Token invalid/expired or password too short
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                expired:
+                  summary: Token expired
+                  value:
+                    success: false
+                    message: Password reset link is invalid or has expired. Please request a new one.
+                weakPassword:
+                  summary: Password too short
+                  value:
+                    success: false
+                    message: Password must be at least 6 characters
 
   /academies:
     get:
@@ -1015,76 +1605,219 @@ paths:
   /videos/feed:
     get:
       tags: [Videos]
-      summary: Get discovery feed videos
+      summary: Smart discovery feed (role-filtered)
+      description: |
+        Returns a paginated list of `FeedItem` objects.
+        Visibility rules by role:
+        - **Admin** — all analyzed or uploaded videos
+        - **Academy** — all public player videos + their own uploaded videos
+        - **Scout / Player / Guest** — public videos that are linked to a player
+
+        Pass the JWT in the `Authorization` header to get role-based filtering.
+        Omit it to receive only public, player-linked videos.
+      security: []
       parameters:
         - in: query
           name: page
-          schema: { type: integer, minimum: 1 }
+          schema: { type: integer, minimum: 1, default: 1 }
+          description: Page number
         - in: query
           name: limit
-          schema: { type: integer, minimum: 1 }
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+          description: Items per page
       responses:
         "200":
-          description: Feed items
+          description: Feed items list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 10
+                  total:
+                    type: integer
+                    example: 47
+                  page:
+                    type: integer
+                    example: 1
+                  pages:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FeedItem"
 
   /videos:
     get:
       tags: [Videos]
       summary: List public analyzed videos
+      description: |
+        Returns only videos where `privacy: public` AND `processingStatus: analyzed`.
+        Use `/videos/feed` for a broader result set that includes uploaded-but-not-yet-analyzed videos.
       parameters:
         - in: query
           name: page
-          schema: { type: integer, minimum: 1 }
+          schema: { type: integer, minimum: 1, default: 1 }
         - in: query
           name: limit
-          schema: { type: integer, minimum: 1 }
+          schema: { type: integer, minimum: 1, default: 20 }
         - in: query
           name: videoType
           schema: { type: string, enum: [highlight, drill, match] }
+          description: Filter by video type
         - in: query
           name: playerId
           schema:
             $ref: "#/components/schemas/ObjectId"
+          description: Filter to a specific player's videos
       responses:
         "200":
           description: Video list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  count: { type: integer }
+                  total: { type: integer }
+                  page: { type: integer }
+                  pages: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Video"
     post:
       tags: [Videos]
-      summary: Upload video (academy only)
+      summary: Upload a video (academy or player)
+      description: |
+        Uploads a video file to **Cloudinary** and creates a `Video` document.
+
+        **Content-Type must be `multipart/form-data`.**
+
+        After upload the video is in `processingStatus: uploaded`.
+        A future CV pipeline will update it to `analyzed`.
+
+        **Who can upload:**
+        - **Academy** — can upload for any player in their roster (pass `playerId`), or as a generic academy video (omit `playerId`)
+        - **Player** — always uploads to their own profile; `playerId` is ignored
+
+        **Requires:** `approved` account status.
       security:
         - bearerAuth: []
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: "#/components/schemas/UploadVideoRequest"
       responses:
         "201":
-          description: Video uploaded
+          description: Video uploaded and queued for processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message:
+                    type: string
+                    example: Video uploaded successfully. It will be processed for analysis.
+                  data:
+                    $ref: "#/components/schemas/Video"
         "400":
-          description: Validation failed
+          description: Validation failed or no file attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                noFile:
+                  summary: No video file in request
+                  value:
+                    success: false
+                    message: Video file is required
+                validationFail:
+                  summary: Missing required field
+                  value:
+                    success: false
+                    message: Validation failed
+                    errors:
+                      - type: field
+                        msg: Video type is required
+                        path: videoType
+                        location: body
+        "401":
+          description: Missing or invalid token
+        "403":
+          description: Account not approved or wrong role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                success: false
+                message: Your account is pending approval. Please wait for admin verification.
 
   /videos/{id}:
     get:
       tags: [Videos]
-      summary: Get video by ID with privacy checks
+      summary: Get video by ID
+      description: |
+        Fetches a single video and increments the view counter.
+
+        **Privacy rules:**
+        - `public` — anyone can view
+        - `scout_only` — requires authenticated scout or admin
+        - `private` — requires the owning academy or admin
       parameters:
         - in: path
           name: id
           required: true
           schema:
             $ref: "#/components/schemas/ObjectId"
+          description: Video document ID
       responses:
         "200":
-          description: Video details
+          description: Video details (view count incremented)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/Video"
         "403":
-          description: Forbidden by privacy policy
+          description: Video is private or scout-only and caller lacks permission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                privateVideo:
+                  value: { success: false, message: This video is private }
+                scoutOnly:
+                  value: { success: false, message: This video is only available to scouts }
         "404":
           description: Video not found
     put:
       tags: [Videos]
-      summary: Update video metadata (academy owner only)
+      summary: Update video metadata
+      description: |
+        Updates `title`, `description`, `privacy`, or `drillType`.
+        Cannot change `videoUrl` or `videoType` after upload.
+
+        **Who can update:**
+        - The **uploader** (whoever called POST /videos)
+        - An **academy** user if the video belongs to one of their players
+        - Any **admin**
       security:
         - bearerAuth: []
       parameters:
@@ -1099,14 +1832,36 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/UpdateVideoRequest"
+            example:
+              title: Updated — Abebe Sprint Drill
+              privacy: public
       responses:
         "200":
           description: Video updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: Video updated successfully }
+                  data:
+                    $ref: "#/components/schemas/Video"
         "403":
-          description: Not authorized
+          description: Not the owner or authorized role
+        "404":
+          description: Video not found
     delete:
       tags: [Videos]
-      summary: Delete video (academy owner only)
+      summary: Delete video (owner only)
+      description: |
+        Deletes the video from the database **and** removes the file from Cloudinary.
+        Also deletes any associated `DrillAnalysis` document.
+
+        **Who can delete:**
+        - The **uploader**
+        - An **academy** user if the video belongs to one of their players
+        - Any **admin**
       security:
         - bearerAuth: []
       parameters:
@@ -1117,14 +1872,27 @@ paths:
             $ref: "#/components/schemas/ObjectId"
       responses:
         "200":
-          description: Video deleted
+          description: Video deleted from DB and Cloudinary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: Video deleted successfully }
         "403":
-          description: Not authorized
+          description: Not the owner or authorized role
+        "404":
+          description: Video not found
 
   /videos/{id}/analysis:
     get:
       tags: [Videos]
-      summary: Get drill analysis for a video
+      summary: Get CV drill analysis for a video
+      description: |
+        Returns the `DrillAnalysis` document for a video.
+        Only available after the CV pipeline has run (`processingStatus: analyzed`).
+        Includes speed metrics, distance, agility/stamina/technical scores, and heatmap data.
       parameters:
         - in: path
           name: id
@@ -1133,14 +1901,23 @@ paths:
             $ref: "#/components/schemas/ObjectId"
       responses:
         "200":
-          description: Video analysis
+          description: Analysis data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/DrillAnalysis"
         "404":
-          description: Analysis not available
+          description: Video or analysis not found
 
   /videos/{id}/view:
     post:
       tags: [Videos]
       summary: Increment video view count
+      description: Call this when the player's video starts playing in the client. No auth required.
       parameters:
         - in: path
           name: id
@@ -1150,6 +1927,232 @@ paths:
       responses:
         "200":
           description: View count updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      views: { type: integer, example: 143 }
+        "404":
+          description: Video not found
+
+  /videos/{id}/like:
+    post:
+      tags: [Videos]
+      summary: Toggle like on a video
+      description: |
+        If the current user **has not** liked the video, adds a like.
+        If they **have** liked it, removes the like (toggle).
+        Requires any authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: "#/components/schemas/ObjectId"
+      responses:
+        "200":
+          description: Like toggled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message:
+                    type: string
+                    example: Video liked
+                    enum: [Video liked, Video unliked]
+                  data:
+                    type: object
+                    properties:
+                      likes:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ObjectId"
+                        description: Updated array of User IDs who liked the video
+                      likesCount:
+                        type: integer
+                        example: 14
+        "401":
+          description: Unauthorized
+        "404":
+          description: Video not found
+
+  /videos/{id}/comments:
+    get:
+      tags: [Videos]
+      summary: Get top-level comments for a video (with nested replies)
+      description: |
+        Returns all **top-level** comments (where `parentComment` is null).
+        Each comment includes its `replies` array populated with reply objects.
+        Results are sorted newest-first.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: "#/components/schemas/ObjectId"
+          description: Video ID
+      responses:
+        "200":
+          description: Comments list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  count: { type: integer, example: 3 }
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Comment"
+    post:
+      tags: [Videos]
+      summary: Add a comment or reply to a video
+      description: |
+        Posts a new comment on the video.
+
+        To post a **reply**, include `parentComment` with the `_id` of the comment being replied to.
+        The reply is automatically added to the parent's `replies` array.
+
+        Any authenticated user can comment.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: "#/components/schemas/ObjectId"
+          description: Video ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCommentRequest"
+            examples:
+              topLevel:
+                summary: Top-level comment
+                value:
+                  text: Incredible technique, great future ahead!
+              reply:
+                summary: Reply to an existing comment
+                value:
+                  text: Totally agree!
+                  parentComment: 680df8bf8f0e823a9ca20e99
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/Comment"
+        "400":
+          description: Empty comment text or parent not found
+        "401":
+          description: Unauthorized
+        "404":
+          description: Video not found
+
+  /videos/{id}/comments/{commentId}:
+    delete:
+      tags: [Videos]
+      summary: Delete a comment
+      description: |
+        Only the **comment author** or an **admin** can delete a comment.
+        Note: Deleting a parent comment does **not** cascade-delete its replies automatically.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: "#/components/schemas/ObjectId"
+          description: Video ID
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            $ref: "#/components/schemas/ObjectId"
+          description: Comment ID to delete
+      responses:
+        "200":
+          description: Comment deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: Comment deleted successfully }
+        "403":
+          description: Not the comment author or admin
+        "404":
+          description: Comment not found
+
+  /videos/{id}/comments/{commentId}/like:
+    post:
+      tags: [Videos]
+      summary: Toggle like on a comment
+      description: |
+        Adds or removes the current user's like from a comment (toggle).
+        Returns the updated likes array and count.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: "#/components/schemas/ObjectId"
+          description: Video ID
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            $ref: "#/components/schemas/ObjectId"
+          description: Comment ID to like/unlike
+      responses:
+        "200":
+          description: Like toggled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message:
+                    type: string
+                    enum: [Comment liked, Comment unliked]
+                    example: Comment liked
+                  data:
+                    type: object
+                    properties:
+                      likes:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ObjectId"
+                      likesCount:
+                        type: integer
+                        example: 5
+        "401":
+          description: Unauthorized
+        "404":
+          description: Comment not found
 
   /matches:
     get:
@@ -1468,8 +2471,17 @@ paths:
   /messages:
     post:
       tags: [Messages]
-      summary: Send a direct message
-      description: Only scouts can start a new conversation, and only with players.
+      summary: Send a direct message (HTTP fallback)
+      description: |
+        Sends a direct message between users via HTTP.
+
+        **Conversation rules:**
+        - Only a **scout** can start a new conversation, and only with a **player**
+        - Once a conversation exists, both parties can send messages freely
+        - You cannot message yourself
+
+        > **Prefer Socket.IO** for real-time delivery (`message:send` event).
+        > This HTTP endpoint is a fallback and does not support `sharedVideo`.
       security:
         - bearerAuth: []
       requestBody:
@@ -1478,16 +2490,51 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/SendMessageRequest"
+            example:
+              receiverId: 680df8bf8f0e823a9ca20e99
+              content: Hi Abebe, I'd love to discuss a scouting opportunity!
       responses:
         "201":
           description: Message sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: Message sent successfully }
+                  data:
+                    $ref: "#/components/schemas/Message"
+        "400":
+          description: Validation error or self-message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                success: false
+                message: You cannot send a message to yourself
         "403":
-          description: Conversation start policy violation
+          description: Scout-only conversation start rule violated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                success: false
+                message: Only scouts can start a new conversation with players
+        "404":
+          description: Receiver user not found
 
   /messages/{userId}:
     get:
       tags: [Messages]
-      summary: Get conversation with a user
+      summary: Get full conversation history with a user
+      description: |
+        Returns all messages exchanged between the authenticated user and `userId`,
+        sorted oldest-first (chronological order).
+
+        > **Prefer Socket.IO** `conversation:history` event for real-time apps.
       security:
         - bearerAuth: []
       parameters:
@@ -1496,6 +2543,23 @@ paths:
           required: true
           schema:
             $ref: "#/components/schemas/ObjectId"
+          description: The `User._id` of the other participant in the conversation
+          example: 680df8bf8f0e823a9ca20e99
       responses:
         "200":
-          description: Conversation messages
+          description: Conversation messages (oldest first)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  count: { type: integer, example: 12 }
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Message"
+        "400":
+          description: Invalid userId format
+        "401":
+          description: Unauthorized

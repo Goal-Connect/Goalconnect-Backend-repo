@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoalConnect | Auth Demo</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="screen card active">
+      <div class="logo">⚽ GoalConnect Demo</div>
+
+      <!-- Tab navigation -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login">Login</button>
+        <button class="auth-tab" id="tab-forgot">Forgot Password</button>
+      </div>
+
+      <!-- Login Panel -->
+      <div id="login-panel">
+        <h2>Welcome Back</h2>
+        <p class="subtitle">Login to access real-time messaging</p>
+        <form id="login-form">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="scout@example.com" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn primary-btn" id="login-btn">Login</button>
+        </form>
+        <div id="login-error" class="error-msg"></div>
+      </div>
+
+      <!-- Forgot Password Panel -->
+      <div id="forgot-panel" style="display:none;">
+        <h2>Forgot Password?</h2>
+        <p class="subtitle">Enter your email and we'll send you a reset link.</p>
+        <form id="forgot-form">
+          <div class="form-group">
+            <label for="forgot-email">Email</label>
+            <input type="email" id="forgot-email" placeholder="your@email.com" required>
+          </div>
+          <button type="submit" class="btn primary-btn" id="forgot-btn">Send Reset Link</button>
+        </form>
+        <div id="forgot-msg" class="status-msg" style="margin-top:14px; text-align:center; font-size:0.9rem;"></div>
+      </div>
+    </div>
+
+    <!-- Reset Password Screen (shown when ?reset_token=... is in the URL) -->
+    <div id="reset-screen" class="screen card">
+      <div class="logo">⚽ GoalConnect Demo</div>
+      <h2>Reset Password</h2>
+      <p class="subtitle">Enter your new password below.</p>
+      <form id="reset-form">
+        <div class="form-group">
+          <label for="new-password">New Password</label>
+          <input type="password" id="new-password" placeholder="Min 6 characters" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label for="confirm-password">Confirm Password</label>
+          <input type="password" id="confirm-password" placeholder="Repeat your new password" required>
+        </div>
+        <button type="submit" class="btn primary-btn" id="reset-btn">Reset &amp; Login</button>
+      </form>
+      <div id="reset-msg" class="status-msg" style="margin-top:14px; text-align:center; font-size:0.9rem;"></div>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboard-screen" class="screen">
+      <!-- Sidebar / User Info -->
+      <aside class="sidebar card">
+        <div class="logo">⚽ GoalConnect Demo</div>
+        <div class="user-profile">
+          <div class="avatar" id="my-avatar">S</div>
+          <div class="user-details">
+            <h3 id="my-role">Scout</h3>
+            <!-- Full ID shown in a copyable box -->
+            <span class="id-label">Your User ID:</span>
+            <div class="id-copy-row">
+              <code class="user-id-full" id="my-id-full">loading…</code>
+              <button class="btn copy-btn" id="copy-id-btn" title="Copy your ID to share with others">📋 Copy</button>
+            </div>
+            <span id="copy-feedback" class="copy-feedback"></span>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <button id="tab-chat" class="nav-tab active">💬 Chat</button>
+          <button id="tab-videos" class="nav-tab">📹 Videos</button>
+        </nav>
+
+        <!-- Email verification banner -->
+        <div id="verify-banner" class="verify-banner" style="display:none;">
+          <span>📧 Email not verified</span>
+          <button id="resend-verify-btn" class="btn resend-btn">Resend</button>
+        </div>
+        
+        <div class="status-indicator">
+          <span class="dot"></span> Connected
+        </div>
+        <button id="logout-btn" class="btn secondary-btn">Logout</button>
+      </aside>
+
+      <!-- Chat Container -->
+      <main id="chat-view" class="view-container card">
+        <header class="chat-header">
+          <p class="chat-hint">Paste the other person's <strong>User ID</strong> below then click Start Chat</p>
+          <div class="connect-form">
+            <input type="text" id="target-user-id" placeholder="Paste the other user's ID here…" spellcheck="false">
+            <button id="connect-chat-btn" class="btn primary-btn">Start Chat</button>
+          </div>
+          <div id="chat-error" class="error-msg"></div>
+        </header>
+
+        <div class="messages" id="messages-list">
+          <div class="empty-state">
+            <span class="empty-icon">💬</span>
+            <p>Copy your ID → share it → paste their ID → Start Chat</p>
+          </div>
+        </div>
+
+        <div class="message-input-area" id="message-input-area" style="display: none;">
+          <input type="text" id="message-input" placeholder="Type a message… (Enter to send)">
+          <button id="send-msg-btn" class="btn primary-btn send-btn">Send</button>
+        </div>
+      </main>
+
+      <!-- Videos Container -->
+      <main id="videos-view" class="view-container card" style="display: none;">
+        <header class="chat-header">
+          <p class="chat-hint">Upload a video or browse the player feed.</p>
+        </header>
+
+        <div class="video-upload-area">
+          <h3 style="margin-bottom: 12px; font-size: 1rem;">Upload Video</h3>
+          <form id="video-upload-form" class="video-form">
+            <input type="text" id="vid-title" placeholder="Video Title" required>
+            <input type="text" id="vid-desc" placeholder="Description">
+            <select id="vid-type" required>
+              <option value="highlight">Highlight</option>
+              <option value="drill">Drill</option>
+              <option value="match">Match (Academy)</option>
+            </select>
+            <input type="file" id="vid-file" accept="video/mp4,video/mkv,video/mov,video/avi" required>
+            <button type="submit" class="btn primary-btn" id="vid-upload-btn">Upload to Cloudinary</button>
+          </form>
+          <div id="vid-upload-status" class="status-msg"></div>
+        </div>
+
+        <div class="video-feed-container messages" id="video-feed-list">
+          <!-- Videos map here -->
+          <div class="empty-state">
+            <span class="empty-icon">⏳</span>
+            <p>Loading feed...</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Edit Video Modal -->
+  <div id="edit-video-modal" class="modal-overlay" style="display: none;">
+    <div class="card modal-content">
+      <h3>Edit Video</h3>
+      <form id="edit-video-form" class="video-form" style="margin-top: 15px;">
+        <input type="hidden" id="edit-vid-id">
+        <label>Title</label>
+        <input type="text" id="edit-vid-title" required>
+        <label>Description</label>
+        <input type="text" id="edit-vid-desc">
+        <label>Privacy</label>
+        <select id="edit-vid-privacy">
+          <option value="public">Public</option>
+          <option value="scout_only">Scout Only</option>
+          <option value="private">Private</option>
+        </select>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button type="submit" class="btn primary-btn" id="save-edit-btn">Save Changes</button>
+          <button type="button" class="btn secondary-btn" onclick="document.getElementById('edit-video-modal').style.display='none'">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Share Video Modal -->
+  <div id="share-video-modal" class="modal-overlay" style="display: none;">
+    <div class="card modal-content">
+      <h3>Share to Scout</h3>
+      <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:15px; margin-top:5px;">Paste the Scout's User ID below. Note: Only scouts can initiate an initial conversation.</p>
+      <form id="share-video-form" class="video-form">
+        <input type="hidden" id="share-vid-id">
+        <label>Scout ID</label>
+        <input type="text" id="share-target-id" placeholder="Paste Scout ID here..." required>
+        <label>Attached Message (Optional)</label>
+        <input type="text" id="share-msg" placeholder="Check out this video!">
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button type="submit" class="btn primary-btn" id="send-share-btn">Send to Chat</button>
+          <button type="button" class="btn secondary-btn" onclick="document.getElementById('share-video-modal').style.display='none'">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
