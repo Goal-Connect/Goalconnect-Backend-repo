@@ -1,19 +1,8 @@
-const swaggerJSDoc = require('swagger-jsdoc');
 const path = require('path');
+const fs   = require('fs');
+const yaml = require('js-yaml');
 
-const options = {
-  definition: {
-    openapi: '3.0.3',
-    info: {
-      title: 'GoalConnect Backend API',
-      version: '1.0.0',
-      description: 'API documentation for GoalConnect backend',
-    },
-  },
-  // Canonical OpenAPI source file
-  apis: [path.join(__dirname, '../docs/openapi.yaml')],
-};
-
-const swaggerSpec = swaggerJSDoc(options);
+const specPath = path.join(__dirname, '../docs/openapi.yaml');
+const swaggerSpec = yaml.load(fs.readFileSync(specPath, 'utf8'));
 
 module.exports = swaggerSpec;

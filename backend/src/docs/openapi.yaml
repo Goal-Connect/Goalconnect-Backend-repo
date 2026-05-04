@@ -45,6 +45,8 @@ info:
     > Only a **scout** can start a new conversation (first message).
     > After that, both parties can reply.
 servers:
+  - url: https://goalconnect-backend-repo-2.onrender.com/api
+    description: Production server (Render)
   - url: http://localhost:5000/api
     description: Local development server
 
