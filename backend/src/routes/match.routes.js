@@ -10,6 +10,9 @@ const {
   deleteMatch,
   addMatchStats,
   getMatchStats,
+  getPublicMatches,
+  rsvpMatch,
+  cancelRsvpMatch,
 } = require('../controllers/match.controller');
 
 const { protect } = require('../middleware/auth.middleware');
@@ -103,7 +106,32 @@ const matchStatsValidation = [
  *   description: Academy matches and player statistics
  */
 
-// All routes require authentication and academy role
+/**
+ * @swagger
+ * /matches/public:
+ *   get:
+ *     summary: List public upcoming matches (Match Center)
+ *     tags: [Matches]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: eventType
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of public upcoming matches
+ */
+router.get('/public', getPublicMatches);
+
+// All routes below require authentication and academy role
 router.use(protect);
 router.use(authorize('academy'));
 
@@ -291,6 +319,56 @@ router.get('/:id/stats', getMatchStats);
  *         description: Unauthorized
  */
 router.post('/:id/stats', requireApproved, matchStatsValidation, addMatchStats);
+
+/**
+ * @swagger
+ * /matches/{id}/rsvp:
+ *   post:
+ *     summary: RSVP for a public match/trial
+ *     tags: [Matches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Successfully RSVPed
+ *       400:
+ *         description: Validation error or already RSVPed
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Match not found
+ */
+router.post('/:id/rsvp', authorize('scout'), requireApproved, rsvpMatch);
+
+/**
+ * @swagger
+ * /matches/{id}/rsvp:
+ *   delete:
+ *     summary: Cancel RSVP for a match
+ *     tags: [Matches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: RSVP cancelled
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Match not found
+ */
+router.delete('/:id/rsvp', authorize('scout'), requireApproved, cancelRsvpMatch);
 
 module.exports = router;
 

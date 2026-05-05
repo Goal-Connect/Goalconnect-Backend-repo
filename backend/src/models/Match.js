@@ -46,12 +46,31 @@ const matchSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isPublic: {
+      type: Boolean,
+      default: false,
+    },
+    eventType: {
+      type: String,
+      enum: ['match', 'trial', 'training_open'],
+      default: 'match',
+    },
     // Result verification
     resultStatus: {
       type: String,
       enum: ['pending', 'submitted', 'verified', 'disputed'],
       default: 'pending',
     },
+    rsvps: [{
+      scout: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Scout',
+      },
+      rsvpedAt: {
+        type: Date,
+        default: Date.now,
+      }
+    }],
     submittedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

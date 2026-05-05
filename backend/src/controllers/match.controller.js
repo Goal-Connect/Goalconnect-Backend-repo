@@ -3,6 +3,7 @@ const Match = require('../models/Match');
 const MatchStats = require('../models/MatchStats');
 const Academy = require('../models/Academy');
 const Player = require('../models/Player');
+const Scout = require('../models/Scout');
 
 /**
  * @desc    Get academy's matches
@@ -24,7 +25,12 @@ const getMatches = async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 20;
     const skip = (page - 1) * limit;
 
-    const query = { academy: academy._id };
+    const query = {
+      $or: [
+        { academy: academy._id },
+        { opponentAcademy: academy._id }
+      ]
+    };
 
     // Filter by match type
     if (req.query.matchType) {
@@ -32,6 +38,8 @@ const getMatches = async (req, res) => {
     }
 
     const matches = await Match.find(query)
+      .populate('academy', 'name logoUrl')
+      .populate('opponentAcademy', 'name logoUrl')
       .skip(skip)
       .limit(limit)
       .sort({ matchDate: -1 });
@@ -73,8 +81,14 @@ const getMatch = async (req, res) => {
 
     const match = await Match.findOne({
       _id: req.params.id,
-      academy: academy._id,
-    }).populate('players', 'fullName position jerseyNumber');
+      $or: [
+        { academy: academy._id },
+        { opponentAcademy: academy._id }
+      ]
+    })
+    .populate('academy', 'name logoUrl')
+    .populate('opponentAcademy', 'name logoUrl')
+    .populate('players', 'fullName position jerseyNumber');
 
     if (!match) {
       return res.status(404).json({
@@ -128,15 +142,18 @@ const createMatch = async (req, res) => {
       });
     }
 
-    const { opponent, matchDate, location, matchType, isHome, notes } = req.body;
+    const { opponent, opponentAcademy, matchDate, location, matchType, isHome, notes, isPublic, eventType } = req.body;
 
     const match = await Match.create({
       academy: academy._id,
       opponent,
+      opponentAcademy: opponentAcademy || undefined,
       matchDate,
       location,
       matchType: matchType || 'friendly',
       isHome: isHome !== undefined ? isHome : true,
+      isPublic: isPublic !== undefined ? isPublic : false,
+      eventType: eventType || 'match',
       notes,
       resultStatus: 'pending',
     });
@@ -182,9 +199,12 @@ const updateMatch = async (req, res) => {
 
     const allowedFields = [
       'opponent',
+      'opponentAcademy',
       'matchDate',
       'location',
       'matchType',
+      'isPublic',
+      'eventType',
       'homeScore',
       'awayScore',
       'isHome',
@@ -443,6 +463,122 @@ const updatePlayerTotals = async (playerId) => {
   });
 };
 
+/**
+ * @desc    Get public matches (Match Center)
+ * @route   GET /api/matches/public
+ * @access  Public
+ */
+const getPublicMatches = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const skip = (page - 1) * limit;
+
+    const query = { 
+      isPublic: true,
+      matchDate: { $gte: new Date() } // Only upcoming matches
+    };
+
+    if (req.query.eventType) {
+      query.eventType = req.query.eventType;
+    }
+
+    if (req.query.region) {
+      // Need to lookup academy region, requiring a join or populated match
+      // For simplicity, let's fetch all and filter or add region to Match
+      // We will populate academy to allow filtering on frontend if not doing complex aggregation here
+    }
+
+    const matches = await Match.find(query)
+      .populate('academy', 'name region logoUrl')
+      .populate('opponentAcademy', 'name logoUrl')
+      .skip(skip)
+      .limit(limit)
+      .sort({ matchDate: 1 }); // Sort by soonest
+
+    const total = await Match.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: matches.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      data: matches,
+    });
+  } catch (error) {
+    console.error('Get public matches error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+/**
+ * @desc    RSVP for a public match/trial
+ * @route   POST /api/matches/:id/rsvp
+ * @access  Private (Scout)
+ */
+const rsvpMatch = async (req, res) => {
+  try {
+    const scout = await Scout.findOne({ user: req.user._id });
+    if (!scout) {
+      return res.status(404).json({ success: false, message: 'Scout profile not found' });
+    }
+
+    const match = await Match.findById(req.params.id);
+    if (!match) {
+      return res.status(404).json({ success: false, message: 'Match not found' });
+    }
+
+    if (!match.isPublic) {
+      return res.status(400).json({ success: false, message: 'Can only RSVP to public events' });
+    }
+
+    // Check if already RSVPed
+    const alreadyRsvped = match.rsvps.some(rsvp => rsvp.scout.toString() === scout._id.toString());
+    if (alreadyRsvped) {
+      return res.status(400).json({ success: false, message: 'Already RSVPed to this event' });
+    }
+
+    match.rsvps.push({ scout: scout._id });
+    await match.save();
+
+    res.status(200).json({ success: true, message: 'Successfully RSVPed', data: match });
+  } catch (error) {
+    console.error('RSVP error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Cancel RSVP for a match
+ * @route   DELETE /api/matches/:id/rsvp
+ * @access  Private (Scout)
+ */
+const cancelRsvpMatch = async (req, res) => {
+  try {
+    const scout = await Scout.findOne({ user: req.user._id });
+    if (!scout) {
+      return res.status(404).json({ success: false, message: 'Scout profile not found' });
+    }
+
+    const match = await Match.findById(req.params.id);
+    if (!match) {
+      return res.status(404).json({ success: false, message: 'Match not found' });
+    }
+
+    match.rsvps = match.rsvps.filter(rsvp => rsvp.scout.toString() !== scout._id.toString());
+    await match.save();
+
+    res.status(200).json({ success: true, message: 'RSVP cancelled', data: match });
+  } catch (error) {
+    console.error('Cancel RSVP error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = {
   getMatches,
   getMatch,
@@ -451,6 +587,9 @@ module.exports = {
   deleteMatch,
   addMatchStats,
   getMatchStats,
+  getPublicMatches,
+  rsvpMatch,
+  cancelRsvpMatch,
 };
 
 
