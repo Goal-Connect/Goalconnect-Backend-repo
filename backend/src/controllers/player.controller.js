@@ -4,6 +4,7 @@ const Academy = require("../models/Academy");
 const Video = require("../models/Video");
 const Scout = require("../models/Scout");
 const User = require("../models/User");
+const { sendPlayerAccountCreationEmail } = require("../utils/email");
 
 /**
  * @desc    Get all players with filtering and pagination
@@ -227,6 +228,16 @@ const createPlayer = async (req, res) => {
     };
 
     const player = await Player.create(playerData);
+
+    // Send the player a welcome email with their credentials — non-blocking
+    sendPlayerAccountCreationEmail(
+      email, 
+      playerBody.fullName || 'Player', 
+      academy.name, 
+      password
+    ).catch(err => 
+      console.error('Failed to send player creation email:', err.message)
+    );
 
     res.status(201).json({
       success: true,
