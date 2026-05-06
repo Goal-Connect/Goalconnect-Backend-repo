@@ -94,6 +94,29 @@ const matchSchema = new mongoose.Schema(
       type: String,
       maxlength: [1000, 'Notes cannot exceed 1000 characters'],
     },
+    // Detailed event info
+    startTime: {
+      type: String, // format: "HH:mm"
+    },
+    endTime: {
+      type: String, // format: "HH:mm"
+    },
+    venue: {
+      type: String,
+      trim: true,
+    },
+    description: {
+      type: String,
+      maxlength: [2000, 'Description cannot exceed 2000 characters'],
+    },
+    contactPerson: {
+      type: String,
+      trim: true,
+    },
+    contactPhone: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

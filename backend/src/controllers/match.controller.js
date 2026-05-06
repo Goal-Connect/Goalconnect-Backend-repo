@@ -40,6 +40,7 @@ const getMatches = async (req, res) => {
     const matches = await Match.find(query)
       .populate('academy', 'name logoUrl')
       .populate('opponentAcademy', 'name logoUrl')
+      .populate('rsvps.scout', 'fullName profileImageUrl organization')
       .skip(skip)
       .limit(limit)
       .sort({ matchDate: -1 });
@@ -101,6 +102,9 @@ const getMatch = async (req, res) => {
     const stats = await MatchStats.find({ match: match._id })
       .populate('player', 'fullName position jerseyNumber');
 
+    // Populate RSVPs with scout info if not already populated
+    await match.populate('rsvps.scout', 'fullName profileImageUrl organization');
+
     res.status(200).json({
       success: true,
       data: {
@@ -142,7 +146,23 @@ const createMatch = async (req, res) => {
       });
     }
 
-    const { opponent, opponentAcademy, matchDate, location, matchType, isHome, notes, isPublic, eventType } = req.body;
+    const { 
+      opponent, 
+      opponentAcademy, 
+      matchDate, 
+      location, 
+      matchType, 
+      isHome, 
+      notes, 
+      isPublic, 
+      eventType,
+      startTime,
+      endTime,
+      venue,
+      description,
+      contactPerson,
+      contactPhone
+    } = req.body;
 
     const match = await Match.create({
       academy: academy._id,
@@ -155,6 +175,12 @@ const createMatch = async (req, res) => {
       isPublic: isPublic !== undefined ? isPublic : false,
       eventType: eventType || 'match',
       notes,
+      startTime,
+      endTime,
+      venue,
+      description,
+      contactPerson,
+      contactPhone,
       resultStatus: 'pending',
     });
 
@@ -210,6 +236,12 @@ const updateMatch = async (req, res) => {
       'isHome',
       'notes',
       'resultStatus',
+      'startTime',
+      'endTime',
+      'venue',
+      'description',
+      'contactPerson',
+      'contactPhone'
     ];
 
     const updateData = {};
@@ -492,6 +524,7 @@ const getPublicMatches = async (req, res) => {
     const matches = await Match.find(query)
       .populate('academy', 'name region logoUrl')
       .populate('opponentAcademy', 'name logoUrl')
+      .populate('rsvps.scout', 'fullName profileImageUrl organization')
       .skip(skip)
       .limit(limit)
       .sort({ matchDate: 1 }); // Sort by soonest
@@ -544,6 +577,7 @@ const rsvpMatch = async (req, res) => {
 
     match.rsvps.push({ scout: scout._id });
     await match.save();
+    await match.populate('rsvps.scout', 'fullName profileImageUrl organization');
 
     res.status(200).json({ success: true, message: 'Successfully RSVPed', data: match });
   } catch (error) {
@@ -571,6 +605,7 @@ const cancelRsvpMatch = async (req, res) => {
 
     match.rsvps = match.rsvps.filter(rsvp => rsvp.scout.toString() !== scout._id.toString());
     await match.save();
+    await match.populate('rsvps.scout', 'fullName profileImageUrl organization');
 
     res.status(200).json({ success: true, message: 'RSVP cancelled', data: match });
   } catch (error) {
