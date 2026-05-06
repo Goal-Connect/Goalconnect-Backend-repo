@@ -109,10 +109,32 @@ const getVideo = async (req, res) => {
   }
 };
 
+const uploadVideoFileOnly = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Video file is required',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: req.file.path,
+    });
+  } catch (error) {
+    console.error('Upload video file error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
 /**
- * @desc    Upload a video for a player
+ * @desc    Upload a video (academy or player)
  * @route   POST /api/videos
- * @access  Private (Academy)
+ * @access  Private (Academy/Player)
  */
 const uploadVideo = async (req, res) => {
   try {
@@ -126,15 +148,18 @@ const uploadVideo = async (req, res) => {
     }
 
     const { title, description, videoType, drillType, privacy } = req.body;
-    let { playerId } = req.body;
+    let { playerId, videoUrl } = req.body;
 
-    if (!req.file) {
+    if (!req.file && !videoUrl) {
       return res.status(400).json({
         success: false,
-        message: 'Video file is required',
+        message: 'Video file or video URL is required',
       });
     }
-    const videoUrl = req.file.path; // Cloudinary secure URL from multer
+    
+    if (req.file) {
+      videoUrl = req.file.path; // Cloudinary secure URL from multer
+    }
 
     // Role-based logic
     if (req.user.role === 'player') {
@@ -705,6 +730,7 @@ module.exports = {
   getVideos,
   getVideo,
   uploadVideo,
+  uploadVideoFileOnly,
   updateVideo,
   deleteVideo,
   getVideoAnalysis,

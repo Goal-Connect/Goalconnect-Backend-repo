@@ -6,6 +6,7 @@ const {
   getVideos,
   getVideo,
   uploadVideo,
+  uploadVideoFileOnly,
   updateVideo,
   deleteVideo,
   getVideoAnalysis,
@@ -208,6 +209,15 @@ router.post('/:id/view', incrementVideoView);
  *         description: Forbidden (requires approved account)
  */
 // Protected routes (Academy and Player)
+router.post(
+  '/upload-file',
+  protect,
+  authorize('academy', 'player'),
+  requireApproved,
+  uploadVideoMw.single('video'),
+  uploadVideoFileOnly
+);
+
 router.post(
   '/', 
   protect, 

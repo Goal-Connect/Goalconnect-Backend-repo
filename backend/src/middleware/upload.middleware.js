@@ -14,9 +14,19 @@ const videoStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'goalconnect_videos',
-    resource_type: 'video', // Must specify video to process correctly
+    resource_type: 'video',
     allowed_formats: ['mp4', 'mkv', 'mov', 'avi'],
-    // e.g. limit size or format further if needed
+  },
+});
+
+// Create Cloudinary Storage for Images (Profile Pictures, Logos)
+const imageStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'goalconnect_images',
+    resource_type: 'image',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ width: 500, height: 500, crop: 'limit' }], // Limit size for profile pics
   },
 });
 
@@ -24,11 +34,19 @@ const videoStorage = new CloudinaryStorage({
 const uploadVideoMw = multer({
   storage: videoStorage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // Optional: Limit to 100 MB per video for now
+    fileSize: 100 * 1024 * 1024, // 100 MB for videos
+  },
+});
+
+const uploadImageMw = multer({
+  storage: imageStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5 MB for images
   },
 });
 
 module.exports = {
   cloudinary,
   uploadVideoMw,
+  uploadImageMw,
 };

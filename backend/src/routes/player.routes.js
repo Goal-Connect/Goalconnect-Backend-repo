@@ -88,6 +88,10 @@ const createPlayerValidation = [
     .optional()
     .isBoolean()
     .withMessage("isAgeVerified must be a boolean"),
+  body("profileImageUrl")
+    .optional()
+    .isURL()
+    .withMessage("Please provide a valid image URL"),
 ];
 
 const updatePlayerValidation = [
@@ -143,6 +147,10 @@ const updatePlayerValidation = [
     .optional()
     .isBoolean()
     .withMessage("isAgeVerified must be a boolean"),
+  body("profileImageUrl")
+    .optional()
+    .isURL()
+    .withMessage("Please provide a valid image URL"),
 ];
 
 /**

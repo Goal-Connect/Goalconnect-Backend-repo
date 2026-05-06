@@ -13,6 +13,9 @@ const academySchema = new mongoose.Schema(
       required: [true, 'Academy name is required'],
       trim: true,
     },
+    logoUrl: {
+      type: String,
+    },
     region: {
       type: String,
       trim: true,
