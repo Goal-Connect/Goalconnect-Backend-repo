@@ -10,6 +10,7 @@ const matchRoutes = require("./match.routes");
 const adminRoutes = require("./admin.routes");
 const messageRoutes = require("./message.routes");
 const profileRoutes = require("./profile.routes");
+const notificationRoutes = require("./notification.routes");
 
 // Mount routes
 router.use("/auth", authRoutes);
@@ -21,6 +22,7 @@ router.use("/matches", matchRoutes);
 router.use("/admin", adminRoutes);
 router.use("/messages", messageRoutes);
 router.use("/profiles", profileRoutes);
+router.use("/notifications", notificationRoutes);
 
 /**
  * @swagger

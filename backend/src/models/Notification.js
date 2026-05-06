@@ -25,6 +25,8 @@ const notificationSchema = new mongoose.Schema(
           "player_join_accepted",
           "player_join_rejected",
           "account_suspended",
+          "scout_rsvp",
+          "scout_rsvp_cancel",
           "general",
         ],
         message: "Invalid notification type",

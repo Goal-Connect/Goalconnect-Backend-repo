@@ -4,6 +4,8 @@ const MatchStats = require('../models/MatchStats');
 const Academy = require('../models/Academy');
 const Player = require('../models/Player');
 const Scout = require('../models/Scout');
+const Notification = require('../models/Notification');
+const { ErrorResponse } = require('../utils/errorResponse');
 
 /**
  * @desc    Get academy's matches
@@ -579,6 +581,21 @@ const rsvpMatch = async (req, res) => {
     await match.save();
     await match.populate('rsvps.scout', 'fullName profileImageUrl organization');
 
+    // Trigger notification to academy
+    const academy = await Academy.findById(match.academy);
+    if (academy) {
+      await Notification.create({
+        userId: academy.user,
+        type: 'scout_rsvp',
+        message: `${scout.fullName} RSVPed to your event against ${match.opponent}`,
+        metadata: {
+          matchId: match._id,
+          senderId: req.user._id,
+          academyId: academy._id
+        }
+      });
+    }
+
     res.status(200).json({ success: true, message: 'Successfully RSVPed', data: match });
   } catch (error) {
     console.error('RSVP error:', error);
@@ -606,6 +623,21 @@ const cancelRsvpMatch = async (req, res) => {
     match.rsvps = match.rsvps.filter(rsvp => rsvp.scout.toString() !== scout._id.toString());
     await match.save();
     await match.populate('rsvps.scout', 'fullName profileImageUrl organization');
+
+    // Trigger notification to academy
+    const academy = await Academy.findById(match.academy);
+    if (academy) {
+      await Notification.create({
+        userId: academy.user,
+        type: 'scout_rsvp_cancel',
+        message: `${scout.fullName} cancelled their RSVP for the event against ${match.opponent}`,
+        metadata: {
+          matchId: match._id,
+          senderId: req.user._id,
+          academyId: academy._id
+        }
+      });
+    }
 
     res.status(200).json({ success: true, message: 'RSVP cancelled', data: match });
   } catch (error) {
