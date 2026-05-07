@@ -30,6 +30,16 @@ const imageStorage = new CloudinaryStorage({
   },
 });
 
+// Create Cloudinary Storage for Documents (Birth certificates, Passports)
+const docStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'goalconnect_documents',
+    resource_type: 'auto', // 'auto' allows for PDF, docx, etc. besides images
+    allowed_formats: ['jpg', 'jpeg', 'png', 'pdf'],
+  },
+});
+
 // Configure Multer
 const uploadVideoMw = multer({
   storage: videoStorage,
@@ -45,8 +55,16 @@ const uploadImageMw = multer({
   },
 });
 
+const uploadDocMw = multer({
+  storage: docStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB for documents
+  },
+});
+
 module.exports = {
   cloudinary,
   uploadVideoMw,
   uploadImageMw,
+  uploadDocMw,
 };

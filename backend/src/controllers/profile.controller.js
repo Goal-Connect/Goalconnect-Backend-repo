@@ -57,6 +57,22 @@ exports.uploadImageOnly = asyncHandler(async (req, res, next) => {
 });
 
 /**
+ * @desc    Generic document upload (returns URL only)
+ * @route   POST /api/profiles/upload-document
+ * @access  Private
+ */
+exports.uploadDocumentOnly = asyncHandler(async (req, res, next) => {
+  if (!req.file) {
+    return next(new ErrorResponse("Please upload a file", 400));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: req.file.path,
+  });
+});
+
+/**
  * @desc    Get current user profile (with joined data)
  * @route   GET /api/profile/me
  * @access  Private
@@ -80,5 +96,67 @@ exports.getMe = asyncHandler(async (req, res, next) => {
       user: req.user,
       profile: profile,
     },
+  });
+});
+/**
+ * @desc    Update profile (by ID)
+ * @route   PUT /api/profiles/:id
+ * @access  Private
+ */
+exports.updateProfile = asyncHandler(async (req, res, next) => {
+  const profileId = req.params.id;
+  let profile = null;
+  let role = "";
+
+  // Find profile and determine role
+  const player = await Player.findById(profileId);
+  if (player) {
+    profile = player;
+    role = "player";
+  } else {
+    const scout = await Scout.findById(profileId);
+    if (scout) {
+      profile = scout;
+      role = "scout";
+    } else {
+      const academy = await Academy.findById(profileId);
+      if (academy) {
+        profile = academy;
+        role = "academy";
+      }
+    }
+  }
+
+  if (!profile) {
+    return next(new ErrorResponse("Profile not found", 404));
+  }
+
+  // Authorization check (simplified for now: owners, academies for their players, or admins)
+  // TODO: Add stricter authorization logic
+
+  // Update fields
+  const updateData = req.body;
+  
+  // Special handling for nested fields if necessary
+  if (updateData.disciplinaryRecord && role === "player") {
+    updateData.disciplinaryRecord.updatedBy = req.user._id;
+    updateData.disciplinaryRecord.updatedAt = new Date();
+  }
+
+  const updatedProfile = await profile.constructor.findByIdAndUpdate(
+    profileId,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  );
+
+  // Auto-verify age if document URLs are present (duplicated logic from player controller for safety)
+  if (role === "player" && (updatedProfile.birthCertificateUrl || updatedProfile.passportUrl)) {
+    updatedProfile.isAgeVerified = true;
+    await updatedProfile.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    data: updatedProfile,
   });
 });

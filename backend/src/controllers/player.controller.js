@@ -219,7 +219,7 @@ const createPlayer = async (req, res) => {
       availabilityStatus: playerBody.availabilityStatus || "Available",
       birthCertificateUrl: playerBody.birthCertificateUrl,
       passportUrl: playerBody.passportUrl,
-      isAgeVerified: playerBody.isAgeVerified || false,
+      isAgeVerified: !!(playerBody.birthCertificateUrl || playerBody.passportUrl),
       academy: academy._id,
       user: playerUser._id,
       verificationStatus: "verified", // Auto-verified when created by academy
@@ -338,6 +338,12 @@ const updatePlayer = async (req, res) => {
     }
 
     await player.save();
+
+    // Auto-verify age if document URLs are present
+    if (player.birthCertificateUrl || player.passportUrl) {
+      player.isAgeVerified = true;
+      await player.save();
+    }
 
     res.status(200).json({
       success: true,
