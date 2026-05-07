@@ -20,6 +20,7 @@ const notificationSchema = new mongoose.Schema(
           "match_disputed",
           "video_approved",
           "video_rejected",
+          "video_takedown_warning",
           "player_added",
           "player_join_request",
           "player_join_accepted",

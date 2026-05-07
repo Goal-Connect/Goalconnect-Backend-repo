@@ -11,6 +11,9 @@ const {
   approveScout,
   suspendScout,
   getAllUsers,
+  getAllVideos,
+  updateVideoStatus,
+  takedownVideo,
 } = require('../controllers/admin.controller');
 
 const { protect } = require('../middleware/auth.middleware');
@@ -245,6 +248,101 @@ router.put('/scouts/:id/approve', approveScout);
  *         description: Scout not found
  */
 router.put('/scouts/:id/suspend', suspendScout);
+
+/**
+ * @swagger
+ * /admin/videos:
+ *   get:
+ *     summary: Get all videos for moderation
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of videos
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/videos', getAllVideos);
+
+/**
+ * @swagger
+ * /admin/videos/{id}/status:
+ *   put:
+ *     summary: Update video moderation status
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, approved, rejected]
+ *               moderationNote:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Video status updated
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Video not found
+ */
+router.put('/videos/:id/status', updateVideoStatus);
+
+/**
+ * @swagger
+ * /admin/videos/{id}/takedown:
+ *   put:
+ *     summary: Take down an inappropriate video and warn the uploader
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: The reason for taking the video down (sent to uploader)
+ *     responses:
+ *       200:
+ *         description: Video taken down and warning sent
+ *       400:
+ *         description: Reason is required
+ *       404:
+ *         description: Video not found
+ */
+router.put('/videos/:id/takedown', takedownVideo);
 
 module.exports = router;
 

@@ -3,6 +3,7 @@ const Academy = require('../models/Academy');
 const Scout = require('../models/Scout');
 const Player = require('../models/Player');
 const Video = require('../models/Video');
+const Notification = require('../models/Notification');
 
 /**
  * @desc    Get dashboard statistics
@@ -395,6 +396,158 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get all videos for moderation
+ * @route   GET /api/admin/videos
+ * @access  Private (Admin)
+ */
+const getAllVideos = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const skip = (page - 1) * limit;
+
+    const query = {};
+
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+
+    if (req.query.videoType) {
+      query.videoType = req.query.videoType;
+    }
+
+    const videos = await Video.find(query)
+      .populate('player', 'fullName profileImageUrl')
+      .populate('uploadedBy', 'email role')
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const total = await Video.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: videos.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      data: videos,
+    });
+  } catch (error) {
+    console.error('Get all videos error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+/**
+ * @desc    Update video moderation status
+ * @route   PUT /api/admin/videos/:id/status
+ * @access  Private (Admin)
+ */
+const updateVideoStatus = async (req, res) => {
+  try {
+    const { status, moderationNote } = req.body;
+
+    if (!['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status',
+      });
+    }
+
+    const video = await Video.findById(req.params.id);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found',
+      });
+    }
+
+    video.status = status;
+    if (moderationNote) {
+      video.description = video.description + (video.description ? '\n\n' : '') + `[Moderation Note]: ${moderationNote}`;
+    }
+    
+    await video.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Video status updated to ${status}`,
+      data: video,
+    });
+  } catch (error) {
+    console.error('Update video status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+/**
+ * @desc    Take down an inappropriate video and warn the uploader
+ * @route   PUT /api/admin/videos/:id/takedown
+ * @access  Private (Admin)
+ */
+const takedownVideo = async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'A reason for taking down the video is required',
+      });
+    }
+
+    const video = await Video.findById(req.params.id);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found',
+      });
+    }
+
+    // Take down: mark rejected and make private so it vanishes from all feeds
+    video.status = 'rejected';
+    video.privacy = 'private';
+    await video.save();
+
+    // Send a warning notification to the uploader
+    try {
+      await Notification.create({
+        userId: video.uploadedBy,
+        type: 'video_takedown_warning',
+        message: `Your video "${video.title}" has been taken down by an administrator. Reason: ${reason.trim()}`,
+        metadata: {
+          videoId: video._id,
+        },
+      });
+    } catch (notifErr) {
+      // Notification failure must never break the takedown itself
+      console.error('Warning notification error:', notifErr);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Video taken down and warning notification sent to the uploader',
+      data: video,
+    });
+  } catch (error) {
+    console.error('Takedown video error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getAllAcademies,
@@ -405,5 +558,8 @@ module.exports = {
   approveScout,
   suspendScout,
   getAllUsers,
+  getAllVideos,
+  updateVideoStatus,
+  takedownVideo,
 };
 
