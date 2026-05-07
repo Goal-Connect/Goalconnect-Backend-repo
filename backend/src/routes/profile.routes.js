@@ -4,7 +4,8 @@ const {
   uploadImageOnly, 
   uploadDocumentOnly, 
   getMe,
-  updateProfile
+  updateProfile,
+  downloadDocument
 } = require("../controllers/profile.controller");
 const { protect } = require("../middleware/auth.middleware");
 const { uploadImageMw, uploadDocMw } = require("../middleware/upload.middleware");
@@ -18,5 +19,6 @@ router.put("/:id", updateProfile);
 router.post("/upload-image", uploadImageMw.single("image"), uploadProfileImage);
 router.post("/upload", uploadImageMw.single("image"), uploadImageOnly);
 router.post("/upload-document", uploadDocMw.single("document"), uploadDocumentOnly);
+router.post("/download-document", downloadDocument);
 
 module.exports = router;

@@ -31,12 +31,14 @@ const imageStorage = new CloudinaryStorage({
 });
 
 // Create Cloudinary Storage for Documents (Birth certificates, Passports)
+// Only image formats — avoids Cloudinary PDF auth/access restrictions
 const docStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'goalconnect_documents',
-    resource_type: 'auto', // 'auto' allows for PDF, docx, etc. besides images
-    allowed_formats: ['jpg', 'jpeg', 'png', 'pdf'],
+    resource_type: 'image',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ width: 1600, height: 1600, crop: 'limit', quality: 'auto' }],
   },
 });
 

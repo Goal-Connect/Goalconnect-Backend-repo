@@ -160,3 +160,51 @@ exports.updateProfile = asyncHandler(async (req, res, next) => {
     data: updatedProfile,
   });
 });
+
+/**
+ * @desc    Generate a signed download URL for a Cloudinary document
+ * @route   POST /api/profiles/download-document
+ * @access  Private
+ */
+exports.downloadDocument = asyncHandler(async (req, res, next) => {
+  const { url } = req.body;
+
+  if (!url) {
+    return next(new ErrorResponse("Document URL is required", 400));
+  }
+
+  // Extract the public_id from the Cloudinary URL
+  // URL format: https://res.cloudinary.com/<cloud>/image/upload/v<version>/<folder>/<filename>
+  const match = url.match(/\/upload\/(?:v\d+\/)?(.*?)(?:\.\w+)?$/);
+  if (!match || !match[1]) {
+    return next(new ErrorResponse("Invalid Cloudinary URL", 400));
+  }
+
+  const publicId = match[1];
+  const isPdf = url.toLowerCase().endsWith('.pdf');
+
+  try {
+    const { cloudinary } = require("../middleware/upload.middleware");
+
+    // Generate a signed URL with a short expiry (1 hour)
+    const signedUrl = cloudinary.url(publicId, {
+      sign_url: true,
+      type: 'authenticated',
+      resource_type: isPdf ? 'image' : 'image',
+      format: isPdf ? 'pdf' : undefined,
+      secure: true,
+      expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour expiry
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        signedUrl,
+        filename: publicId.split('/').pop() + (isPdf ? '.pdf' : ''),
+      },
+    });
+  } catch (error) {
+    console.error("Signed URL generation error:", error);
+    return next(new ErrorResponse("Failed to generate download link", 500));
+  }
+});
