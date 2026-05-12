@@ -17,7 +17,7 @@ const getVideos = async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 20;
     const skip = (page - 1) * limit;
 
-    const query = { privacy: 'public', processingStatus: 'analyzed' };
+    const query = { privacy: 'public', processingStatus: { $in: ['analyzed', 'uploaded'] } };
 
     if (req.query.videoType) {
       query.videoType = req.query.videoType;
@@ -210,6 +210,7 @@ const uploadVideo = async (req, res) => {
       videoType,
       drillType,
       privacy: privacy || 'public',
+      status: 'approved',
       processingStatus: 'uploaded',
     });
 

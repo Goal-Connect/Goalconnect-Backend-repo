@@ -76,6 +76,10 @@ const videoSchema = new mongoose.Schema(
         ref: 'User',
       },
     ],
+    moderationNote: {
+      type: String,
+      maxlength: [1000, 'Moderation note cannot exceed 1000 characters'],
+    },
   },
   {
     timestamps: true,

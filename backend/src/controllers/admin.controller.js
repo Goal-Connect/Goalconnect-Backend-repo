@@ -517,6 +517,7 @@ const takedownVideo = async (req, res) => {
     // Take down: mark rejected and make private so it vanishes from all feeds
     video.status = 'rejected';
     video.privacy = 'private';
+    video.moderationNote = reason.trim();
     await video.save();
 
     // Send a warning notification to the uploader
@@ -524,7 +525,7 @@ const takedownVideo = async (req, res) => {
       await Notification.create({
         userId: video.uploadedBy,
         type: 'video_takedown_warning',
-        message: `Your video "${video.title}" has been taken down by an administrator. Reason: ${reason.trim()}`,
+        message: reason.trim(),
         metadata: {
           videoId: video._id,
         },

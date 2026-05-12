@@ -113,7 +113,7 @@ const getPlayer = async (req, res) => {
       .populate("academy", "name region logoUrl")
       .populate({
         path: "videos",
-        match: { privacy: "public", processingStatus: "analyzed" },
+        match: { privacy: "public", processingStatus: { $in: ["analyzed", "uploaded"] } },
         select: "title thumbnailUrl videoType duration views createdAt",
         options: { sort: { createdAt: -1 }, limit: 10 },
       });
