@@ -141,7 +141,7 @@ router.put('/me', protect, authorize('academy'), updateAcademyValidation, update
  */
 router.get('/me/players', protect, authorize('academy'), getMyPlayers);
 
-const { uploadImageMw } = require('../middleware/upload.middleware');
+const { uploadImageMw, withUploadErrorHandling } = require('../middleware/upload.middleware');
 
 /**
  * @swagger
@@ -159,7 +159,7 @@ const { uploadImageMw } = require('../middleware/upload.middleware');
  *       401:
  *         description: Unauthorized
  */
-router.post('/me/license', protect, authorize('academy'), uploadImageMw.single('license'), uploadLicense);
+router.post('/me/license', protect, authorize('academy'), withUploadErrorHandling(uploadImageMw.single('license')), uploadLicense);
 
 /**
  * @swagger

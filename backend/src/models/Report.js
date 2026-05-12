@@ -55,6 +55,7 @@ const reportSchema = new mongoose.Schema(
           "spam",
           "harassment",
           "fake_information",
+          "age_discrepancy",
           "copyright_violation",
           "match_manipulation",
           "other",
@@ -67,6 +68,10 @@ const reportSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: [1000, "Description cannot exceed 1000 characters"],
+    },
+    metadata: {
+      evidenceLink: { type: String },
+      extra: { type: Object },
     },
     status: {
       type: String,

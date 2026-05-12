@@ -1,11 +1,11 @@
-const dotenv = require('dotenv');
+const dotenv = require("dotenv");
 
 // Load environment variables
 dotenv.config();
 
-const app = require('./src/app');
-const connectDB = require('./src/config/db');
-const { initSocket } = require('./src/realtime/socket');
+const app = require("./src/app");
+const connectDB = require("./src/config/db");
+const { initSocket } = require("./src/realtime/socket");
 
 // Connect to database
 connectDB();
@@ -18,7 +18,7 @@ const server = app.listen(PORT, () => {
 ║                                                           ║
 ║   ⚽ GoalConnect API Server                               ║
 ║                                                           ║
-║   Environment: ${process.env.NODE_ENV || 'development'}                                ║
+║   Environment: ${process.env.NODE_ENV || "development"}                                ║
 ║   Port: ${PORT}                                              ║
 ║   API URL: http://localhost:${PORT}/api                      ║
 ║                                                           ║
@@ -32,24 +32,23 @@ const server = app.listen(PORT, () => {
 initSocket(server);
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (err, promise) => {
+process.on("unhandledRejection", (err, promise) => {
   console.error(`Error: ${err.message}`);
   // Close server & exit process
   server.close(() => process.exit(1));
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
+process.on("uncaughtException", (err) => {
   console.error(`Error: ${err.message}`);
   process.exit(1);
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received. Shutting down gracefully...");
   server.close(() => {
-    console.log('Process terminated.');
+    console.log("Process terminated.");
     process.exit(0);
   });
 });
-

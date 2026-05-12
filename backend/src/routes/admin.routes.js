@@ -15,6 +15,7 @@ const {
   updateVideoStatus,
   takedownVideo,
 } = require('../controllers/admin.controller');
+const { getReports, reviewReport } = require('../controllers/report.controller');
 
 const { protect } = require('../middleware/auth.middleware');
 const { authorize } = require('../middleware/role.middleware');
@@ -343,6 +344,12 @@ router.put('/videos/:id/status', updateVideoStatus);
  *         description: Video not found
  */
 router.put('/videos/:id/takedown', takedownVideo);
+
+/**
+ * Reports moderation
+ */
+router.get('/reports', getReports);
+router.put('/reports/:id/review', reviewReport);
 
 module.exports = router;
 

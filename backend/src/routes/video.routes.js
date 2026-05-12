@@ -21,7 +21,7 @@ const {
 
 const { protect, optionalAuth } = require('../middleware/auth.middleware');
 const { authorize, requireApproved } = require('../middleware/role.middleware');
-const { uploadVideoMw } = require('../middleware/upload.middleware');
+const { uploadVideoMw, withUploadErrorHandling } = require('../middleware/upload.middleware');
 
 // Validation rules
 const uploadVideoValidation = [
@@ -214,7 +214,7 @@ router.post(
   protect,
   authorize('academy', 'player'),
   requireApproved,
-  uploadVideoMw.single('video'),
+  withUploadErrorHandling(uploadVideoMw.single('video')),
   uploadVideoFileOnly
 );
 
@@ -223,7 +223,7 @@ router.post(
   protect, 
   authorize('academy', 'player'), 
   requireApproved, 
-  uploadVideoMw.single('video'),
+  withUploadErrorHandling(uploadVideoMw.single('video')),
   uploadVideoValidation, 
   uploadVideo 
 );

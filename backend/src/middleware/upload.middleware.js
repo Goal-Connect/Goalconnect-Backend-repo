@@ -64,9 +64,27 @@ const uploadDocMw = multer({
   },
 });
 
+// Wrap multer middleware so storage/provider failures become normal HTTP errors
+const withUploadErrorHandling = (middleware) => (req, res, next) => {
+  middleware(req, res, (err) => {
+    if (!err) {
+      return next();
+    }
+
+    console.error('Upload middleware error:', err);
+
+    const statusCode = err.http_code || err.statusCode || 500;
+    return res.status(statusCode).json({
+      success: false,
+      message: err.message || 'File upload failed',
+    });
+  });
+};
+
 module.exports = {
   cloudinary,
   uploadVideoMw,
   uploadImageMw,
   uploadDocMw,
+  withUploadErrorHandling,
 };
