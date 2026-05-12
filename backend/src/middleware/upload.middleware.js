@@ -1,6 +1,6 @@
-const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('cloudinary').v2;
+const multer = require("multer");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("cloudinary").v2;
 
 // Configure Cloudinary once credentials are provided via .env
 cloudinary.config({
@@ -13,9 +13,9 @@ cloudinary.config({
 const videoStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'goalconnect_videos',
-    resource_type: 'video',
-    allowed_formats: ['mp4', 'mkv', 'mov', 'avi'],
+    folder: "goalconnect_videos",
+    resource_type: "video",
+    allowed_formats: ["mp4", "mkv", "mov", "avi"],
   },
 });
 
@@ -23,10 +23,10 @@ const videoStorage = new CloudinaryStorage({
 const imageStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'goalconnect_images',
-    resource_type: 'image',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [{ width: 500, height: 500, crop: 'limit' }], // Limit size for profile pics
+    folder: "goalconnect_images",
+    resource_type: "image",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [{ width: 500, height: 500, crop: "limit" }], // Limit size for profile pics
   },
 });
 
@@ -35,10 +35,12 @@ const imageStorage = new CloudinaryStorage({
 const docStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'goalconnect_documents',
-    resource_type: 'image',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [{ width: 1600, height: 1600, crop: 'limit', quality: 'auto' }],
+    folder: "goalconnect_documents",
+    resource_type: "image",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [
+      { width: 1600, height: 1600, crop: "limit", quality: "auto" },
+    ],
   },
 });
 
@@ -71,12 +73,12 @@ const withUploadErrorHandling = (middleware) => (req, res, next) => {
       return next();
     }
 
-    console.error('Upload middleware error:', err);
+    console.error("Upload middleware error:", err);
 
     const statusCode = err.http_code || err.statusCode || 500;
     return res.status(statusCode).json({
       success: false,
-      message: err.message || 'File upload failed',
+      message: err.message || "File upload failed",
     });
   });
 };

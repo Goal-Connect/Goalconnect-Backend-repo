@@ -1,5 +1,5 @@
-const express = require('express');
-const { body } = require('express-validator');
+const express = require("express");
+const { body } = require("express-validator");
 const router = express.Router();
 
 const {
@@ -9,25 +9,25 @@ const {
   updateMyAcademy,
   getMyPlayers,
   uploadLicense,
-} = require('../controllers/academy.controller');
+} = require("../controllers/academy.controller");
 
-const { protect, optionalAuth } = require('../middleware/auth.middleware');
-const { authorize, requireApproved } = require('../middleware/role.middleware');
+const { protect, optionalAuth } = require("../middleware/auth.middleware");
+const { authorize, requireApproved } = require("../middleware/role.middleware");
 
 // Validation rules
 const updateAcademyValidation = [
-  body('name')
+  body("name")
     .optional()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Name must be between 2 and 100 characters'),
-  body('contactPhone')
+    .withMessage("Name must be between 2 and 100 characters"),
+  body("contactPhone")
     .optional()
     .matches(/^[+]?[\d\s-]+$/)
-    .withMessage('Please provide a valid phone number'),
-  body('description')
+    .withMessage("Please provide a valid phone number"),
+  body("description")
     .optional()
     .isLength({ max: 1000 })
-    .withMessage('Description cannot exceed 1000 characters'),
+    .withMessage("Description cannot exceed 1000 characters"),
 ];
 
 /**
@@ -65,7 +65,7 @@ const updateAcademyValidation = [
  *         description: List of academies
  */
 // Public routes
-router.get('/', getAcademies);
+router.get("/", getAcademies);
 
 /**
  * @swagger
@@ -82,7 +82,7 @@ router.get('/', getAcademies);
  *         description: Unauthorized
  */
 // Protected routes (Academy only) - MUST come before /:id to avoid matching "me" as an ID
-router.get('/me', protect, authorize('academy'), getMyAcademy);
+router.get("/me", protect, authorize("academy"), getMyAcademy);
 
 /**
  * @swagger
@@ -106,7 +106,13 @@ router.get('/me', protect, authorize('academy'), getMyAcademy);
  *       401:
  *         description: Unauthorized
  */
-router.put('/me', protect, authorize('academy'), updateAcademyValidation, updateMyAcademy);
+router.put(
+  "/me",
+  protect,
+  authorize("academy"),
+  updateAcademyValidation,
+  updateMyAcademy,
+);
 
 /**
  * @swagger
@@ -139,9 +145,12 @@ router.put('/me', protect, authorize('academy'), updateAcademyValidation, update
  *       401:
  *         description: Unauthorized
  */
-router.get('/me/players', protect, authorize('academy'), getMyPlayers);
+router.get("/me/players", protect, authorize("academy"), getMyPlayers);
 
-const { uploadImageMw, withUploadErrorHandling } = require('../middleware/upload.middleware');
+const {
+  uploadImageMw,
+  withUploadErrorHandling,
+} = require("../middleware/upload.middleware");
 
 /**
  * @swagger
@@ -159,7 +168,13 @@ const { uploadImageMw, withUploadErrorHandling } = require('../middleware/upload
  *       401:
  *         description: Unauthorized
  */
-router.post('/me/license', protect, authorize('academy'), withUploadErrorHandling(uploadImageMw.single('license')), uploadLicense);
+router.post(
+  "/me/license",
+  protect,
+  authorize("academy"),
+  withUploadErrorHandling(uploadImageMw.single("license")),
+  uploadLicense,
+);
 
 /**
  * @swagger
@@ -181,7 +196,6 @@ router.post('/me/license', protect, authorize('academy'), withUploadErrorHandlin
  *         description: Academy not found
  */
 // Dynamic ID route - MUST come after /me routes
-router.get('/:id', optionalAuth, getAcademy);
+router.get("/:id", optionalAuth, getAcademy);
 
 module.exports = router;
-

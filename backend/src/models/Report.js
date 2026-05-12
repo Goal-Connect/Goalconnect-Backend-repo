@@ -13,7 +13,7 @@ const REPORT_TARGET_TYPE_BY_MODEL = Object.fromEntries(
   Object.entries(REPORT_TARGET_MODEL_BY_TYPE).map(([type, model]) => [
     model,
     type,
-  ])
+  ]),
 );
 
 const REPORT_TARGET_TYPES = Object.keys(REPORT_TARGET_MODEL_BY_TYPE);
@@ -77,8 +77,7 @@ const reportSchema = new mongoose.Schema(
       type: String,
       enum: {
         values: ["pending", "reviewed", "resolved", "dismissed"],
-        message:
-          "Status must be pending, reviewed, resolved, or dismissed",
+        message: "Status must be pending, reviewed, resolved, or dismissed",
       },
       default: "pending",
     },
@@ -99,7 +98,7 @@ const reportSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 reportSchema.pre("validate", function (next) {
@@ -115,7 +114,7 @@ reportSchema.pre("validate", function (next) {
     if (expected && expected !== model) {
       this.invalidate(
         "targetModel",
-        `targetModel must be "${expected}" for targetType "${type}"`
+        `targetModel must be "${expected}" for targetType "${type}"`,
       );
     }
   }

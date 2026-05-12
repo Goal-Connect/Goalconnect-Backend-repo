@@ -1,5 +1,5 @@
-const express = require('express');
-const { body } = require('express-validator');
+const express = require("express");
+const { body } = require("express-validator");
 const router = express.Router();
 
 const {
@@ -17,56 +17,56 @@ const {
   addComment,
   deleteComment,
   toggleCommentLike,
-} = require('../controllers/video.controller');
+} = require("../controllers/video.controller");
 
-const { protect, optionalAuth } = require('../middleware/auth.middleware');
-const { authorize, requireApproved } = require('../middleware/role.middleware');
-const { uploadVideoMw, withUploadErrorHandling } = require('../middleware/upload.middleware');
+const { protect, optionalAuth } = require("../middleware/auth.middleware");
+const { authorize, requireApproved } = require("../middleware/role.middleware");
+const {
+  uploadVideoMw,
+  withUploadErrorHandling,
+} = require("../middleware/upload.middleware");
 
 // Validation rules
 const uploadVideoValidation = [
-  body('playerId')
-    .optional()
-    .isMongoId()
-    .withMessage('Invalid player ID'),
-  body('title')
+  body("playerId").optional().isMongoId().withMessage("Invalid player ID"),
+  body("title")
     .notEmpty()
-    .withMessage('Title is required')
+    .withMessage("Title is required")
     .isLength({ min: 2, max: 100 })
-    .withMessage('Title must be between 2 and 100 characters'),
-  body('description')
+    .withMessage("Title must be between 2 and 100 characters"),
+  body("description")
     .optional()
     .isLength({ max: 500 })
-    .withMessage('Description cannot exceed 500 characters'),
+    .withMessage("Description cannot exceed 500 characters"),
   // videoUrl comes from Cloudinary via multer, so we remove the requirement here.
-  body('videoType')
+  body("videoType")
     .notEmpty()
-    .withMessage('Video type is required')
-    .isIn(['highlight', 'drill', 'match'])
-    .withMessage('Video type must be highlight, drill, or match'),
-  body('drillType')
+    .withMessage("Video type is required")
+    .isIn(["highlight", "drill", "match"])
+    .withMessage("Video type must be highlight, drill, or match"),
+  body("drillType")
     .optional()
-    .isIn(['dribbling', 'shooting', 'passing', 'speed', 'agility', 'other'])
-    .withMessage('Invalid drill type'),
-  body('privacy')
+    .isIn(["dribbling", "shooting", "passing", "speed", "agility", "other"])
+    .withMessage("Invalid drill type"),
+  body("privacy")
     .optional()
-    .isIn(['public', 'scout_only', 'private'])
-    .withMessage('Privacy must be public, scout_only, or private'),
+    .isIn(["public", "scout_only", "private"])
+    .withMessage("Privacy must be public, scout_only, or private"),
 ];
 
 const updateVideoValidation = [
-  body('title')
+  body("title")
     .optional()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Title must be between 2 and 100 characters'),
-  body('description')
+    .withMessage("Title must be between 2 and 100 characters"),
+  body("description")
     .optional()
     .isLength({ max: 500 })
-    .withMessage('Description cannot exceed 500 characters'),
-  body('privacy')
+    .withMessage("Description cannot exceed 500 characters"),
+  body("privacy")
     .optional()
-    .isIn(['public', 'scout_only', 'private'])
-    .withMessage('Privacy must be public, scout_only, or private'),
+    .isIn(["public", "scout_only", "private"])
+    .withMessage("Privacy must be public, scout_only, or private"),
 ];
 
 /**
@@ -87,7 +87,7 @@ const updateVideoValidation = [
  *         description: Video feed
  */
 // Public/Smart routes
-router.get('/feed', optionalAuth, getVideoFeed);
+router.get("/feed", optionalAuth, getVideoFeed);
 
 /**
  * @swagger
@@ -116,7 +116,7 @@ router.get('/feed', optionalAuth, getVideoFeed);
  *       200:
  *         description: List of videos
  */
-router.get('/', getVideos);
+router.get("/", getVideos);
 
 /**
  * @swagger
@@ -138,7 +138,7 @@ router.get('/', getVideos);
  *       404:
  *         description: Video not found
  */
-router.get('/:id', optionalAuth, getVideo);
+router.get("/:id", optionalAuth, getVideo);
 
 /**
  * @swagger
@@ -158,7 +158,7 @@ router.get('/:id', optionalAuth, getVideo);
  *       404:
  *         description: Video or analysis not found
  */
-router.get('/:id/analysis', optionalAuth, getVideoAnalysis);
+router.get("/:id/analysis", optionalAuth, getVideoAnalysis);
 
 /**
  * @swagger
@@ -178,7 +178,7 @@ router.get('/:id/analysis', optionalAuth, getVideoAnalysis);
  *       404:
  *         description: Video not found
  */
-router.post('/:id/view', incrementVideoView);
+router.post("/:id/view", incrementVideoView);
 
 /**
  * @swagger
@@ -210,22 +210,22 @@ router.post('/:id/view', incrementVideoView);
  */
 // Protected routes (Academy and Player)
 router.post(
-  '/upload-file',
+  "/upload-file",
   protect,
-  authorize('academy', 'player'),
+  authorize("academy", "player"),
   requireApproved,
-  withUploadErrorHandling(uploadVideoMw.single('video')),
-  uploadVideoFileOnly
+  withUploadErrorHandling(uploadVideoMw.single("video")),
+  uploadVideoFileOnly,
 );
 
 router.post(
-  '/', 
-  protect, 
-  authorize('academy', 'player'), 
-  requireApproved, 
-  withUploadErrorHandling(uploadVideoMw.single('video')),
-  uploadVideoValidation, 
-  uploadVideo 
+  "/",
+  protect,
+  authorize("academy", "player"),
+  requireApproved,
+  withUploadErrorHandling(uploadVideoMw.single("video")),
+  uploadVideoValidation,
+  uploadVideo,
 );
 
 /**
@@ -256,7 +256,13 @@ router.post(
  *       404:
  *         description: Video not found
  */
-router.put('/:id', protect, authorize('academy', 'player', 'admin'), updateVideoValidation, updateVideo);
+router.put(
+  "/:id",
+  protect,
+  authorize("academy", "player", "admin"),
+  updateVideoValidation,
+  updateVideo,
+);
 
 /**
  * @swagger
@@ -280,7 +286,12 @@ router.put('/:id', protect, authorize('academy', 'player', 'admin'), updateVideo
  *       404:
  *         description: Video not found
  */
-router.delete('/:id', protect, authorize('academy', 'player', 'admin'), deleteVideo);
+router.delete(
+  "/:id",
+  protect,
+  authorize("academy", "player", "admin"),
+  deleteVideo,
+);
 
 /**
  * @swagger
@@ -291,7 +302,7 @@ router.delete('/:id', protect, authorize('academy', 'player', 'admin'), deleteVi
  *     security:
  *       - bearerAuth: []
  */
-router.post('/:id/like', protect, toggleLike);
+router.post("/:id/like", protect, toggleLike);
 
 /**
  * @swagger
@@ -300,7 +311,7 @@ router.post('/:id/like', protect, toggleLike);
  *     summary: Get comments for a video
  *     tags: [Videos]
  */
-router.get('/:id/comments', optionalAuth, getComments);
+router.get("/:id/comments", optionalAuth, getComments);
 
 /**
  * @swagger
@@ -311,7 +322,7 @@ router.get('/:id/comments', optionalAuth, getComments);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/:id/comments', protect, addComment);
+router.post("/:id/comments", protect, addComment);
 
 /**
  * @swagger
@@ -322,7 +333,7 @@ router.post('/:id/comments', protect, addComment);
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id/comments/:commentId', protect, deleteComment);
+router.delete("/:id/comments/:commentId", protect, deleteComment);
 
 /**
  * @swagger
@@ -333,7 +344,6 @@ router.delete('/:id/comments/:commentId', protect, deleteComment);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/:id/comments/:commentId/like', protect, toggleCommentLike);
+router.post("/:id/comments/:commentId/like", protect, toggleCommentLike);
 
 module.exports = router;
-

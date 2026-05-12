@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
 const {
@@ -14,11 +14,14 @@ const {
   getAllVideos,
   updateVideoStatus,
   takedownVideo,
-} = require('../controllers/admin.controller');
-const { getReports, reviewReport } = require('../controllers/report.controller');
+} = require("../controllers/admin.controller");
+const {
+  getReports,
+  reviewReport,
+} = require("../controllers/report.controller");
 
-const { protect } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/role.middleware');
+const { protect } = require("../middleware/auth.middleware");
+const { authorize } = require("../middleware/role.middleware");
 
 /**
  * @swagger
@@ -29,7 +32,7 @@ const { authorize } = require('../middleware/role.middleware');
 
 // All routes require authentication and admin role
 router.use(protect);
-router.use(authorize('admin'));
+router.use(authorize("admin"));
 
 /**
  * @swagger
@@ -46,7 +49,7 @@ router.use(authorize('admin'));
  *         description: Unauthorized
  */
 // Dashboard
-router.get('/dashboard', getDashboard);
+router.get("/dashboard", getDashboard);
 
 /**
  * @swagger
@@ -63,7 +66,7 @@ router.get('/dashboard', getDashboard);
  *         description: Unauthorized
  */
 // User management
-router.get('/users', getAllUsers);
+router.get("/users", getAllUsers);
 
 /**
  * @swagger
@@ -89,7 +92,7 @@ router.get('/users', getAllUsers);
  *         description: Unauthorized
  */
 // Academy management
-router.get('/academies', getAllAcademies);
+router.get("/academies", getAllAcademies);
 
 /**
  * @swagger
@@ -113,7 +116,7 @@ router.get('/academies', getAllAcademies);
  *       404:
  *         description: Academy not found
  */
-router.put('/academies/:id/approve', approveAcademy);
+router.put("/academies/:id/approve", approveAcademy);
 
 /**
  * @swagger
@@ -148,7 +151,7 @@ router.put('/academies/:id/approve', approveAcademy);
  *       404:
  *         description: Academy not found
  */
-router.put('/academies/:id/reject', rejectAcademy);
+router.put("/academies/:id/reject", rejectAcademy);
 
 /**
  * @swagger
@@ -183,7 +186,7 @@ router.put('/academies/:id/reject', rejectAcademy);
  *       404:
  *         description: Academy not found
  */
-router.put('/academies/:id/suspend', suspendAcademy);
+router.put("/academies/:id/suspend", suspendAcademy);
 
 /**
  * @swagger
@@ -200,7 +203,7 @@ router.put('/academies/:id/suspend', suspendAcademy);
  *         description: Unauthorized
  */
 // Scout management
-router.get('/scouts', getAllScouts);
+router.get("/scouts", getAllScouts);
 
 /**
  * @swagger
@@ -224,7 +227,7 @@ router.get('/scouts', getAllScouts);
  *       404:
  *         description: Scout not found
  */
-router.put('/scouts/:id/approve', approveScout);
+router.put("/scouts/:id/approve", approveScout);
 
 /**
  * @swagger
@@ -248,7 +251,7 @@ router.put('/scouts/:id/approve', approveScout);
  *       404:
  *         description: Scout not found
  */
-router.put('/scouts/:id/suspend', suspendScout);
+router.put("/scouts/:id/suspend", suspendScout);
 
 /**
  * @swagger
@@ -269,7 +272,7 @@ router.put('/scouts/:id/suspend', suspendScout);
  *       401:
  *         description: Unauthorized
  */
-router.get('/videos', getAllVideos);
+router.get("/videos", getAllVideos);
 
 /**
  * @swagger
@@ -307,7 +310,7 @@ router.get('/videos', getAllVideos);
  *       404:
  *         description: Video not found
  */
-router.put('/videos/:id/status', updateVideoStatus);
+router.put("/videos/:id/status", updateVideoStatus);
 
 /**
  * @swagger
@@ -343,13 +346,12 @@ router.put('/videos/:id/status', updateVideoStatus);
  *       404:
  *         description: Video not found
  */
-router.put('/videos/:id/takedown', takedownVideo);
+router.put("/videos/:id/takedown", takedownVideo);
 
 /**
  * Reports moderation
  */
-router.get('/reports', getReports);
-router.put('/reports/:id/review', reviewReport);
+router.get("/reports", getReports);
+router.put("/reports/:id/review", reviewReport);
 
 module.exports = router;
-

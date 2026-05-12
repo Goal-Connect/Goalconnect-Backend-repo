@@ -1,13 +1,13 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const swaggerUi = require('swagger-ui-express');
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const morgan = require("morgan");
+const swaggerUi = require("swagger-ui-express");
 
-const swaggerSpec = require('./config/swagger');
+const swaggerSpec = require("./config/swagger");
 
 // Import routes
-const routes = require('./routes');
+const routes = require("./routes");
 
 // Initialize express app
 const app = express();
@@ -23,11 +23,11 @@ app.use(
       // Allow non-browser clients (no Origin header)
       if (!origin) return callback(null, true);
 
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === "production") {
         if (!process.env.FRONTEND_URL || origin === process.env.FRONTEND_URL) {
           return callback(null, true);
         }
-        return callback(new Error('Not allowed by CORS'));
+        return callback(new Error("Not allowed by CORS"));
       }
 
       // Dev: allow localhost/127.0.0.1 on any port
@@ -35,38 +35,38 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error('Not allowed by CORS'));
+      return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
 );
 
 // Body parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Logging middleware
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
 } else {
-  app.use(morgan('combined'));
+  app.use(morgan("combined"));
 }
 
 // API routes
-app.use('/api', routes);
+app.use("/api", routes);
 
 // Swagger API documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: 'Welcome to GoalConnect API',
-    version: '1.0.0',
-    documentation: '/api/health',
+    message: "Welcome to GoalConnect API",
+    version: "1.0.0",
+    documentation: "/api/health",
   });
 });
 
@@ -80,14 +80,14 @@ app.use((req, res, next) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  console.error("Error:", err);
 
   // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const messages = Object.values(err.errors).map(e => e.message);
+  if (err.name === "ValidationError") {
+    const messages = Object.values(err.errors).map((e) => e.message);
     return res.status(400).json({
       success: false,
-      message: 'Validation Error',
+      message: "Validation Error",
       errors: messages,
     });
   }
@@ -102,7 +102,7 @@ app.use((err, req, res, next) => {
   }
 
   // Mongoose cast error (invalid ObjectId)
-  if (err.name === 'CastError') {
+  if (err.name === "CastError") {
     return res.status(400).json({
       success: false,
       message: `Invalid ${err.path}: ${err.value}`,
@@ -110,27 +110,26 @@ app.use((err, req, res, next) => {
   }
 
   // JWT errors
-  if (err.name === 'JsonWebTokenError') {
+  if (err.name === "JsonWebTokenError") {
     return res.status(401).json({
       success: false,
-      message: 'Invalid token',
+      message: "Invalid token",
     });
   }
 
-  if (err.name === 'TokenExpiredError') {
+  if (err.name === "TokenExpiredError") {
     return res.status(401).json({
       success: false,
-      message: 'Token expired',
+      message: "Token expired",
     });
   }
 
   // Default server error
   res.status(err.statusCode || 500).json({
     success: false,
-    message: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    message: err.message || "Internal Server Error",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
 
 module.exports = app;
-
