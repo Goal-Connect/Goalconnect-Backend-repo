@@ -408,7 +408,10 @@ const addMatchStats = async (req, res) => {
       });
 
       // Add player to match if not already
-      if (!match.players.includes(playerId)) {
+      const playerExists = match.players.some(
+        (id) => id.toString() === playerId.toString()
+      );
+      if (!playerExists) {
         match.players.push(playerId);
         await match.save();
       }

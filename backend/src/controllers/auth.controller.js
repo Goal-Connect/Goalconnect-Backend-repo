@@ -225,7 +225,26 @@ const getMe = async (req, res) => {
     } else if (user.role === 'scout') {
       profile = await Scout.findOne({ user: user._id });
     } else if (user.role === 'player') {
-      profile = await Player.findOne({ user: user._id });
+      // Populate academy info for player profile
+      profile = await Player.findOne({ user: user._id }).populate(
+        'academy',
+        '_id name region address logoUrl'
+      );
+    }
+    
+    // For scouts, populate saved players and recently viewed player details
+    if (user.role === 'scout') {
+      profile = await Scout.findOne({ user: user._id })
+        .populate({
+          path: 'savedPlayers',
+          select: '_id fullName position profileImageUrl academy',
+          populate: { path: 'academy', select: '_id name region' },
+        })
+        .populate({
+          path: 'recentlyViewed.player',
+          select: '_id fullName position profileImageUrl academy',
+          populate: { path: 'academy', select: '_id name region' },
+        });
     }
 
     res.status(200).json({
