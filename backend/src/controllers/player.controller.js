@@ -491,7 +491,10 @@ const savePlayer = async (req, res) => {
     }
 
     // Check if already saved
-    if (scout.savedPlayers.includes(playerId)) {
+    const alreadySaved = scout.savedPlayers.some(
+      (id) => id.toString() === playerId.toString()
+    );
+    if (alreadySaved) {
       return res.status(400).json({
         success: false,
         message: "Player is already saved",

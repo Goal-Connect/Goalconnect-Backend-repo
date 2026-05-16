@@ -93,7 +93,10 @@ const scoutSchema = new mongoose.Schema(
 
 // Method to add player to saved list
 scoutSchema.methods.savePlayer = function (playerId) {
-  if (!this.savedPlayers.includes(playerId)) {
+  const alreadySaved = this.savedPlayers.some(
+    (id) => id.toString() === playerId.toString()
+  );
+  if (!alreadySaved) {
     this.savedPlayers.push(playerId);
   }
   return this.save();
