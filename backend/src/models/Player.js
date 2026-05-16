@@ -167,6 +167,30 @@ const playerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    aiPerformance: {
+      topSpeed: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      distanceCovered: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      assignmentsCount: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      lastAnalyzedVideo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Video",
+      },
+      lastUpdatedAt: {
+        type: Date,
+      },
+    },
   },
   {
     timestamps: true,

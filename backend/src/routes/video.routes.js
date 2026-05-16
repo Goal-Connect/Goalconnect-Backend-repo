@@ -10,6 +10,9 @@ const {
   updateVideo,
   deleteVideo,
   getVideoAnalysis,
+  upsertTrackerAnalytics,
+  getTrackerAnalyticsReview,
+  assignTrackerAnalytics,
   getVideoFeed,
   incrementVideoView,
   toggleLike,
@@ -159,6 +162,30 @@ router.get("/:id", optionalAuth, getVideo);
  *         description: Video or analysis not found
  */
 router.get("/:id/analysis", optionalAuth, getVideoAnalysis);
+
+router.post(
+  "/:id/tracker-analytics",
+  protect,
+  authorize("academy", "admin"),
+  requireApproved,
+  upsertTrackerAnalytics,
+);
+
+router.get(
+  "/:id/tracker-analytics/review",
+  protect,
+  authorize("academy", "admin"),
+  requireApproved,
+  getTrackerAnalyticsReview,
+);
+
+router.post(
+  "/:id/tracker-analytics/assign",
+  protect,
+  authorize("academy", "admin"),
+  requireApproved,
+  assignTrackerAnalytics,
+);
 
 /**
  * @swagger

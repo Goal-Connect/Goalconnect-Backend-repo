@@ -1,11 +1,16 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGODB_URI || process.env.MongoDB_URI;
+    const mongoUri =
+      process.env.MONGODB_URI ||
+      process.env.MongoDB_URI ||
+      "mongodb://localhost:27017/goalconnect";
 
     if (!mongoUri) {
-      throw new Error('Missing MongoDB connection string. Set MONGODB_URI in your environment.');
+      throw new Error(
+        "Missing MongoDB connection string. Set MONGODB_URI in your environment.",
+      );
     }
 
     const conn = await mongoose.connect(mongoUri);
@@ -17,4 +22,3 @@ const connectDB = async () => {
 };
 
 module.exports = connectDB;
-

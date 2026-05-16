@@ -1,17 +1,16 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const drillAnalysisSchema = new mongoose.Schema(
   {
     video: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Video',
+      ref: "Video",
       required: true,
       unique: true,
     },
     player: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Player',
-      required: true,
+      ref: "Player",
     },
     metrics: {
       // Speed metrics (m/s)
@@ -78,7 +77,7 @@ const drillAnalysisSchema = new mongoose.Schema(
     // Analysis metadata
     analysisVersion: {
       type: String,
-      default: '1.0',
+      default: "1.0",
     },
     processingTime: {
       type: Number, // in milliseconds
@@ -88,18 +87,61 @@ const drillAnalysisSchema = new mongoose.Schema(
       min: 0,
       max: 1,
     },
+    drillId: {
+      type: String,
+      trim: true,
+    },
+    trackerAnalytics: [
+      {
+        trackerId: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
+        topSpeed: {
+          type: Number,
+          min: 0,
+          default: 0,
+        },
+        distanceCovered: {
+          type: Number,
+          min: 0,
+          default: 0,
+        },
+        thumbnailUrl: {
+          type: String,
+          trim: true,
+        },
+        assignedPlayer: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Player",
+        },
+        assignedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        assignedAt: {
+          type: Date,
+        },
+        isPublished: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Calculate overall score based on individual metrics
-drillAnalysisSchema.pre('save', function (next) {
+drillAnalysisSchema.pre("save", function (next) {
   const metrics = this.metrics;
   if (metrics.agilityScore && metrics.staminaScore && metrics.technicalScore) {
     metrics.overallScore = Math.round(
-      (metrics.agilityScore + metrics.staminaScore + metrics.technicalScore) / 3
+      (metrics.agilityScore + metrics.staminaScore + metrics.technicalScore) /
+        3,
     );
   }
   next();
@@ -107,6 +149,6 @@ drillAnalysisSchema.pre('save', function (next) {
 
 // Index for efficient queries
 drillAnalysisSchema.index({ player: 1, createdAt: -1 });
+drillAnalysisSchema.index({ video: 1, "trackerAnalytics.trackerId": 1 });
 
-module.exports = mongoose.model('DrillAnalysis', drillAnalysisSchema);
-
+module.exports = mongoose.model("DrillAnalysis", drillAnalysisSchema);
