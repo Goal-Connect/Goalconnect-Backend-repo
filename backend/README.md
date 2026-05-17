@@ -106,6 +106,141 @@ The server will start at `http://localhost:5000`
 | GET | `/api/admin/scouts` | Get all scouts |
 | PUT | `/api/admin/scouts/:id/approve` | Approve scout |
 
+## Socket.IO Messaging for Flutter
+
+The mobile app can connect directly to the backend Socket.IO server for realtime chat.
+Use the deployed backend in production and the local backend during development.
+
+### Connection URLs
+
+- Local development: `http://localhost:5000`
+- Deployed backend: `https://goalconnect-backend-repo-2.onrender.com`
+
+### Flutter package
+
+Add the Socket.IO client package to your Flutter app:
+
+```bash
+flutter pub add socket_io_client
+```
+
+### Flutter connection example
+
+```dart
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+late IO.Socket socket;
+
+void connectSocket(String token) {
+   socket = IO.io(
+      'https://goalconnect-backend-repo-2.onrender.com',
+      IO.OptionBuilder()
+            .setTransports(['websocket'])
+            .enableReconnection()
+            .setAuth({'token': token})
+            .build(),
+   );
+
+   socket.onConnect((_) {
+      print('Socket connected: ${socket.id}');
+   });
+
+   socket.onConnectError((error) {
+      print('Socket connect error: $error');
+   });
+
+   socket.onDisconnect((_) {
+      print('Socket disconnected');
+   });
+}
+```
+
+### Events supported by the backend
+
+#### Client -> Server
+
+- `message:send` - Send a message
+   - Payload: `{ toUserId, content, sharedVideo? }`
+- `conversation:history` - Get conversation history with another user
+   - Payload: `{ withUserId, limit? }`
+- `message:edit` - Edit a message you sent
+   - Payload: `{ messageId, newContent }`
+- `message:delete` - Delete a message you sent
+   - Payload: `{ messageId }`
+- `message:read` - Mark messages in a conversation as read
+   - Payload: `{ withUserId }`
+- `typing:start` - Start typing indicator
+   - Payload: `{ toUserId }`
+- `typing:stop` - Stop typing indicator
+   - Payload: `{ toUserId }`
+
+#### Server -> Client
+
+- `connection:success` - Sent after socket authentication succeeds
+   - Payload: `{ userId, role }`
+- `message:sent` - Sent back to the sender when no ack callback is used
+- `message:received` - Sent to the receiver when a message arrives
+- `message:edited` - Sent when a message is edited
+- `message:deleted` - Sent when a message is deleted
+- `message:read` - Sent when messages are marked as read
+   - Payload: `{ messageIds, by }`
+- `typing:start` - Sent to the other user when typing starts
+   - Payload: `{ fromUserId }`
+- `typing:stop` - Sent to the other user when typing stops
+   - Payload: `{ fromUserId }`
+
+### Sending a message with acknowledgement
+
+```dart
+socket.emitWithAck(
+   'message:send',
+   {
+      'toUserId': otherUserId,
+      'content': messageText,
+   },
+   ack: (response) {
+      print('Send response: $response');
+   },
+);
+```
+
+### Listening for new messages
+
+```dart
+socket.on('message:received', (data) {
+   print('New message: $data');
+});
+```
+
+### Marking a conversation as read
+
+```dart
+socket.emitWithAck(
+   'message:read',
+   {
+      'withUserId': otherUserId,
+   },
+   ack: (response) {
+      print('Read response: $response');
+   },
+);
+```
+
+### Typing indicator example
+
+```dart
+socket.emit('typing:start', {'toUserId': otherUserId});
+
+socket.emit('typing:stop', {'toUserId': otherUserId});
+```
+
+### Notes for Flutter developers
+
+- Send the JWT in the Socket.IO handshake using `auth.token`.
+- Use `https://goalconnect-backend-repo-2.onrender.com` in production.
+- Use `http://localhost:5000` only for local backend testing.
+- Socket.IO is realtime; use the HTTP endpoints for initial history loading and fallback when needed.
+
 ## User Roles
 
 1. **Admin**: Full system access, approves/rejects registrations

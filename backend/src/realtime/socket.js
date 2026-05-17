@@ -303,6 +303,57 @@ const initSocket = (httpServer) => {
       }
     });
 
+    // Mark messages as read for a conversation: payload { withUserId }
+    socket.on('message:read', async (payload, callback) => {
+      try {
+        const { withUserId } = payload || {};
+        if (!withUserId) {
+          if (callback) return callback({ success: false, error: 'withUserId is required' });
+          return;
+        }
+
+        const me = user._id.toString();
+        const other = withUserId.toString();
+
+        // Find unread messages sent by the other user to me
+        const unread = await Message.find({ senderId: other, receiverId: me, isRead: false }).select('_id').lean();
+        const ids = unread.map((m) => m._id.toString());
+
+        if (ids.length) {
+          await Message.updateMany({ _id: { $in: ids } }, { $set: { isRead: true } });
+
+          // Notify the other participant in real-time
+          emitToUser(other, 'message:read', { messageIds: ids, by: me });
+        }
+
+        if (callback) callback({ success: true, data: { updatedIds: ids } });
+      } catch (err) {
+        console.error('message:read error:', err);
+        if (callback) callback({ success: false, error: 'Server error marking messages as read' });
+      }
+    });
+
+    // Typing indicators
+    socket.on('typing:start', (payload) => {
+      try {
+        const { toUserId } = payload || {};
+        if (!toUserId) return;
+        emitToUser(toUserId.toString(), 'typing:start', { fromUserId: userId });
+      } catch (err) {
+        console.error('typing:start error:', err);
+      }
+    });
+
+    socket.on('typing:stop', (payload) => {
+      try {
+        const { toUserId } = payload || {};
+        if (!toUserId) return;
+        emitToUser(toUserId.toString(), 'typing:stop', { fromUserId: userId });
+      } catch (err) {
+        console.error('typing:stop error:', err);
+      }
+    });
+
     socket.on('disconnect', () => {
       removeSocketForUser(userId, socket.id);
     });

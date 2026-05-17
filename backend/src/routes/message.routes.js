@@ -2,7 +2,7 @@ const express = require('express');
 const { body, param } = require('express-validator');
 const router = express.Router();
 
-const { sendMessage, getConversation } = require('../controllers/message.controller');
+const { sendMessage, getConversation, getConversations } = require('../controllers/message.controller');
 const { protect } = require('../middleware/auth.middleware');
 const { requireApproved } = require('../middleware/role.middleware');
 
@@ -95,5 +95,28 @@ router.get(
   ],
   getConversation
 );
+
+/**
+ * @swagger
+ * /messages:
+ *   get:
+ *     summary: Get conversation partners list (recent conversations)
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Maximum number of conversations to return (optional)
+ *     responses:
+ *       200:
+ *         description: List of conversation partners with last message and unread counts
+ *       401:
+ *         description: Unauthorized
+ */
+// GET /api/messages - list conversation partners
+router.get('/', getConversations);
 
 module.exports = router;

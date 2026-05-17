@@ -23,24 +23,40 @@ info:
     Tokens are obtained from `/auth/login` or `/auth/register`.
 
     ### Real-time Messaging (Socket.IO)
-    Core messaging is handled via **Socket.IO** at `ws://localhost:5000`.
-    Connect with JWT in the handshake:
+    Core messaging is handled via **Socket.IO**. For local development use `ws://localhost:5000`; in production use `wss://goalconnect-backend-repo-2.onrender.com`.
+
+    Connect with JWT in the handshake (local example):
     ```js
     const socket = io('http://localhost:5000', {
       auth: { token: '<jwt>' }
     });
     ```
+
+    Production / deployed example:
+    ```js
+    const socket = io('https://goalconnect-backend-repo-2.onrender.com', {
+      transports: ['websocket'],
+      auth: { token: '<jwt>' }
+    });
+    ```
     **Client → Server events:**
-    - `message:send` — `{ toUserId, content, sharedVideo? }`
-    - `conversation:history` — `{ withUserId, limit? }`
+    - `message:send` — `{ toUserId, content, sharedVideo? }` (send a message; supports ack callback)
+    - `conversation:history` — `{ withUserId, limit? }` (fetch recent messages; ack returns data)
     - `message:edit` — `{ messageId, newContent }`
     - `message:delete` — `{ messageId }`
+    - `message:read` — `{ withUserId }` (mark messages from `withUserId` as read)
+    - `typing:start` — `{ toUserId }`
+    - `typing:stop` — `{ toUserId }`
 
     **Server → Client events:**
-    - `connection:success` — `{ userId, role }`
-    - `message:received` — full message object
+    - `connection:success` — `{ userId, role }` (sent on successful socket auth)
+    - `message:sent` — full message object (emitted to sender when no ack callback used)
+    - `message:received` — full message object (delivered to receiver)
     - `message:edited` — updated message object
     - `message:deleted` — `{ _id }`
+    - `message:read` — `{ messageIds: [...], by }` (notify sender their messages were read)
+    - `typing:start` — `{ fromUserId }`
+    - `typing:stop` — `{ fromUserId }`
 
     > Only a **scout** can start a new conversation (first message).
     > After that, both parties can reply.
@@ -2471,6 +2487,47 @@ paths:
           description: Scout not found
 
   /messages:
+    get:
+      tags: [Messages]
+      summary: Get conversation list for the authenticated user
+      description: |
+        Returns the users that have an existing conversation with the authenticated user,
+        along with the latest message and unread count for each thread.
+
+        > **Prefer Socket.IO** for realtime messaging.
+        > Use this endpoint to populate the chat list / inbox screen.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Conversation list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 2
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user:
+                          type: object
+                          additionalProperties: true
+                          description: The other participant in the conversation
+                        lastMessage:
+                          $ref: "#/components/schemas/Message"
+                        unreadCount:
+                          type: integer
+                          example: 3
+        "401":
+          description: Unauthorized
     post:
       tags: [Messages]
       summary: Send a direct message (HTTP fallback)
@@ -2565,3 +2622,54 @@ paths:
           description: Invalid userId format
         "401":
           description: Unauthorized
+
+    /realtime/socket:
+      get:
+        tags: [Messages]
+        summary: Socket.IO connection information and handshake example
+        description: |
+          This endpoint documents how clients should connect to the server using Socket.IO
+          (JWT in the handshake `auth.token`). It is a documentation-only helper — the
+          server does not perform a REST-based socket handshake here.
+
+          Example Socket.IO client:
+
+          ```js
+          import { io } from 'socket.io-client';
+          const socket = io('http://localhost:5000', {
+            transports: ['websocket'],
+            auth: { token: '<JWT>' }
+          });
+          socket.on('connect', () => console.log('connected', socket.id));
+          ```
+
+          Core events supported (client → server):
+          - `message:send` — { toUserId, content, sharedVideo? }
+          - `conversation:history` — { withUserId, limit? }
+          - `message:edit` — { messageId, newContent }
+          - `message:delete` — { messageId }
+          - `message:read` — { withUserId }
+          - `typing:start` — { toUserId }
+          - `typing:stop` — { toUserId }
+
+          Server → client events:
+          - `connection:success` — { userId, role }
+          - `message:received` — message object
+          - `message:edited` — message object
+          - `message:deleted` — { _id }
+          - `message:read` — { messageIds: [...], by }
+          - `typing:start` / `typing:stop` — { fromUserId }
+
+        responses:
+          "200":
+            description: Human-readable connection instructions (for developers)
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    note:
+                      type: string
+                      example: Use Socket.IO client with JWT in handshake `auth.token`
+          "401":
+            description: Unauthorized (not applicable — this is doc guidance)

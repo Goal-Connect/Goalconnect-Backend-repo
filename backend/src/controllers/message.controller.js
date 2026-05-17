@@ -110,7 +110,78 @@ const getConversation = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get list of conversation partners (summary)
+ * @route   GET /api/messages
+ * @access  Private
+ */
+const getConversations = async (req, res) => {
+  try {
+    const me = req.user._id.toString();
+
+    // Fetch recent messages involving the user, newest first
+    const messages = await Message.find({
+      $or: [
+        { senderId: me },
+        { receiverId: me },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Reduce to a map of otherUserId -> { lastMessage, unreadCount }
+    const convoMap = new Map();
+
+    for (const m of messages) {
+      const other = m.senderId.toString() === me ? m.receiverId.toString() : m.senderId.toString();
+      const existing = convoMap.get(other);
+
+      if (!existing) {
+        convoMap.set(other, {
+          lastMessage: m,
+          unreadCount: m.receiverId.toString() === me && !m.isRead ? 1 : 0,
+        });
+      } else {
+        // messages are sorted desc, so only increment unreadCount for additional unread messages
+        if (m.receiverId.toString() === me && !m.isRead) {
+          existing.unreadCount += 1;
+        }
+      }
+    }
+
+    const userIds = Array.from(convoMap.keys());
+
+    // Populate user details for the conversation partners
+    const users = await User.find({ _id: { $in: userIds } }).select('-password').lean();
+    const usersById = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
+
+    const data = userIds.map((id) => {
+      const entry = convoMap.get(id);
+      const lm = entry.lastMessage;
+      return {
+        user: usersById[id] || { _id: id },
+        lastMessage: {
+          _id: lm._id.toString(),
+          senderId: lm.senderId.toString(),
+          receiverId: lm.receiverId.toString(),
+          content: lm.content,
+          sharedVideo: lm.sharedVideo,
+          isRead: lm.isRead,
+          createdAt: lm.createdAt,
+        },
+        unreadCount: entry.unreadCount,
+      };
+    });
+
+    res.status(200).json({ success: true, count: data.length, data });
+  } catch (error) {
+    console.error('Get conversations error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching conversations' });
+  }
+};
+
 module.exports = {
   sendMessage,
   getConversation,
+  getConversations,
 };
