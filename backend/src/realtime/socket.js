@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Message = require('../models/Message');
+const { isAllowedOrigin } = require('../utils/cors');
 
 // userId(string) -> Set<socketId>
 const onlineUsers = new Map();
@@ -39,10 +40,17 @@ const emitToUser = (userId, event, payload) => {
 const initSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
-      origin:
-        process.env.NODE_ENV === 'production'
-          ? process.env.FRONTEND_URL
-          : ['http://localhost:3000', 'http://localhost:5173'],
+      origin: (origin, callback) => {
+        if (
+          isAllowedOrigin(origin, {
+            allowLocalOrigins: process.env.NODE_ENV !== 'production',
+          })
+        ) {
+          return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
     },
   });

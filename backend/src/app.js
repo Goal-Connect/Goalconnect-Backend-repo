@@ -6,6 +6,7 @@ const swaggerUi = require("swagger-ui-express");
 const path = require("path");
 
 const swaggerSpec = require("./config/swagger");
+const { isAllowedOrigin } = require("./utils/cors");
 
 // Import routes
 const routes = require("./routes");
@@ -17,22 +18,17 @@ const app = express();
 app.use(helmet());
 
 // CORS configuration
-const devOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow non-browser clients (no Origin header)
       if (!origin) return callback(null, true);
 
-      if (process.env.NODE_ENV === "production") {
-        if (!process.env.FRONTEND_URL || origin === process.env.FRONTEND_URL) {
-          return callback(null, true);
-        }
-        return callback(new Error("Not allowed by CORS"));
-      }
-
-      // Dev: allow localhost/127.0.0.1 on any port
-      if (devOriginPattern.test(origin)) {
+      if (
+        isAllowedOrigin(origin, {
+          allowLocalOrigins: process.env.NODE_ENV !== "production",
+        })
+      ) {
         return callback(null, true);
       }
 

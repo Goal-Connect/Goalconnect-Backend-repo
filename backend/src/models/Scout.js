@@ -69,6 +69,13 @@ const scoutSchema = new mongoose.Schema(
     preferredRegions: [{
       type: String,
     }],
+    approvedAt: {
+      type: Date,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
     // Saved/Favorited players
     savedPlayers: [{
       type: mongoose.Schema.Types.ObjectId,

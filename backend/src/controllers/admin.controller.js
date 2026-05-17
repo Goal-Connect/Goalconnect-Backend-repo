@@ -4,6 +4,7 @@ const Scout = require('../models/Scout');
 const Player = require('../models/Player');
 const Video = require('../models/Video');
 const Notification = require('../models/Notification');
+const { sendAccountApprovedEmail } = require('../utils/email');
 
 /**
  * @desc    Get dashboard statistics
@@ -144,6 +145,18 @@ const approveAcademy = async (req, res) => {
 
     // Update user status
     await User.findByIdAndUpdate(academy.user, { status: 'approved' });
+
+    // Notify academy via email (non-blocking)
+    try {
+      const user = await User.findById(academy.user);
+      if (user && user.email) {
+        sendAccountApprovedEmail(user.email, 'academy', academy.name).catch((err) =>
+          console.error('Failed to send academy approved email:', err.message)
+        );
+      }
+    } catch (err) {
+      console.error('Error fetching user for approval email:', err.message);
+    }
 
     res.status(200).json({
       success: true,
@@ -303,8 +316,45 @@ const approveScout = async (req, res) => {
       });
     }
 
-    // Update user status
+    // Check idempotency: if already approved, return success (preserve frontend expectations)
+    const linkedUser = await User.findById(scout.user).select('status email');
+    if (linkedUser && linkedUser.status === 'approved') {
+      return res.status(200).json({
+        success: true,
+        message: 'Scout approved successfully',
+      });
+    }
+
+    // Record approval metadata on Scout
+    scout.approvedAt = new Date();
+    scout.approvedBy = req.user._id;
+    await scout.save();
+
+    // Update user status (make sure change is persisted)
     await User.findByIdAndUpdate(scout.user, { status: 'approved' });
+
+    // Create an in-app notification for the scout
+    try {
+      await Notification.create({
+        userId: scout.user,
+        type: 'account_approved',
+        message: 'Your scout account has been approved by an administrator.',
+        metadata: { scoutId: scout._id },
+      });
+    } catch (notifErr) {
+      console.error('Notification creation error for scout approval:', notifErr.message);
+    }
+
+    // Notify scout via email (non-blocking)
+    try {
+      if (linkedUser && linkedUser.email) {
+        sendAccountApprovedEmail(linkedUser.email, 'scout', scout.fullName).catch((err) =>
+          console.error('Failed to send scout approved email:', err.message)
+        );
+      }
+    } catch (err) {
+      console.error('Error fetching user for scout approval email:', err.message);
+    }
 
     res.status(200).json({
       success: true,
