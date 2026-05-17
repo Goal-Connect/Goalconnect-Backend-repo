@@ -1,5 +1,10 @@
 const { validationResult } = require("express-validator");
 const mongoose = require("mongoose");
+const path = require("path");
+const fs = require("fs");
+const http = require("http");
+const https = require("https");
+const { spawn } = require("child_process");
 const Video = require("../models/Video");
 const Player = require("../models/Player");
 const Academy = require("../models/Academy");
@@ -676,7 +681,191 @@ const getVideoAnalysis = async (req, res) => {
 };
 
 /**
- * @desc    Ingest tracker-level analytics for a video
+ * Uploads an annotated video to Cloudinary and updates video.annotatedVideoUrl.
+ * Accepts either a local /public/... file or a publicly accessible http URL.
+ * Returns the Cloudinary secure URL on success, or null if upload is not possible.
+ */
+async function uploadAnnotatedVideoToCloudinary(video) {
+  const annotatedUrl = video.annotatedVideoUrl;
+  if (!annotatedUrl) return null;
+  if (
+    annotatedUrl.includes("cloudinary.com") &&
+    annotatedUrl.includes("vc_h264")
+  )
+    return annotatedUrl;
+
+  const publicRoot = process.env.BACKEND_PUBLIC_DIR
+    ? path.resolve(process.env.BACKEND_PUBLIC_DIR)
+    : path.join(__dirname, "../../public");
+
+  let uploadSource = null;
+
+  const PUBLIC_MARKER = "/public/";
+  const markerIdx = annotatedUrl.indexOf(PUBLIC_MARKER);
+  if (markerIdx !== -1) {
+    const relPath = annotatedUrl.slice(markerIdx + PUBLIC_MARKER.length);
+    const localPath = path.join(publicRoot, relPath);
+    if (fs.existsSync(localPath)) uploadSource = localPath;
+  }
+
+  if (!uploadSource && annotatedUrl.startsWith("http")) {
+    const isLocal =
+      annotatedUrl.includes("localhost") ||
+      annotatedUrl.includes("127.0.0.1") ||
+      /http:\/\/10\./.test(annotatedUrl) ||
+      /http:\/\/192\.168\./.test(annotatedUrl);
+    if (!isLocal) uploadSource = annotatedUrl;
+  }
+
+  if (!uploadSource) return null;
+
+  const result = await cloudinary.uploader.upload(uploadSource, {
+    resource_type: "video",
+    folder: "goalconnect_annotated_videos",
+    public_id: `annotated_${video._id}`,
+    overwrite: true,
+    chunk_size: 6_000_000,
+    eager: [{ format: "mp4", video_codec: "h264", flags: "progressive" }],
+    eager_async: false,
+  });
+
+  // Use the fully-transcoded H.264 URL from the eager result
+  const h264Url = result.eager?.[0]?.secure_url || result.secure_url;
+
+  video.annotatedVideoUrl = h264Url;
+  await video.save();
+  return h264Url;
+}
+
+/**
+ * Downloads a URL to an in-memory Buffer (works for localhost URLs from same machine).
+ */
+function downloadToBuffer(url) {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith("https") ? https : http;
+    mod
+      .get(url, (res) => {
+        if (res.statusCode !== 200) {
+          reject(new Error(`HTTP ${res.statusCode} fetching ${url}`));
+          res.resume();
+          return;
+        }
+        const chunks = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () => resolve(Buffer.concat(chunks)));
+        res.on("error", reject);
+      })
+      .on("error", reject);
+  });
+}
+
+/**
+ * Uploads a single image URL to Cloudinary.
+ * Handles: backend /public/ paths, any http URL (including CV service localhost).
+ */
+async function uploadImageToCloudinary(imageUrl, publicId) {
+  if (!imageUrl || imageUrl.includes("cloudinary.com")) return imageUrl;
+
+  const publicRoot = process.env.BACKEND_PUBLIC_DIR
+    ? path.resolve(process.env.BACKEND_PUBLIC_DIR)
+    : path.join(__dirname, "../../public");
+
+  // Try local file first
+  const PUBLIC_MARKER = "/public/";
+  const markerIdx = imageUrl.indexOf(PUBLIC_MARKER);
+  if (markerIdx !== -1) {
+    const relPath = imageUrl.slice(markerIdx + PUBLIC_MARKER.length);
+    const localPath = path.join(publicRoot, relPath);
+    if (fs.existsSync(localPath)) {
+      const result = await cloudinary.uploader.upload(localPath, {
+        resource_type: "image",
+        folder: "goalconnect_analytics",
+        public_id: publicId,
+        overwrite: true,
+      });
+      return result.secure_url;
+    }
+  }
+
+  // Download from any http URL (including same-machine CV service localhost)
+  if (imageUrl.startsWith("http")) {
+    const buffer = await downloadToBuffer(imageUrl);
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: "image",
+          folder: "goalconnect_analytics",
+          public_id: publicId,
+          overwrite: true,
+        },
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result.secure_url);
+        },
+      );
+      stream.end(buffer);
+    });
+  }
+
+  return null;
+}
+
+/**
+ * Uploads all tracker thumbnail and heatmap images to Cloudinary in the background.
+ */
+async function uploadTrackingImagesToCloudinary(analysis) {
+  const rows = analysis?.trackerAnalytics;
+  if (!rows?.length) return;
+
+  let changed = false;
+
+  for (const row of rows) {
+    if (row.thumbnailUrl && !row.thumbnailUrl.includes("cloudinary.com")) {
+      try {
+        const cdnUrl = await uploadImageToCloudinary(
+          row.thumbnailUrl,
+          `thumb_${analysis.video}_${row.trackerId}`,
+        );
+        if (cdnUrl) {
+          row.thumbnailUrl = cdnUrl;
+          changed = true;
+        }
+      } catch (e) {
+        console.warn(
+          `[BG] thumb upload failed for tracker ${row.trackerId}: ${e.message}`,
+        );
+      }
+    }
+
+    if (row.heatmapUrl && !row.heatmapUrl.includes("cloudinary.com")) {
+      try {
+        const cdnUrl = await uploadImageToCloudinary(
+          row.heatmapUrl,
+          `heat_${analysis.video}_${row.trackerId}`,
+        );
+        if (cdnUrl) {
+          row.heatmapUrl = cdnUrl;
+          changed = true;
+        }
+      } catch (e) {
+        console.warn(
+          `[BG] heatmap upload failed for tracker ${row.trackerId}: ${e.message}`,
+        );
+      }
+    }
+  }
+
+  if (changed) {
+    analysis.markModified("trackerAnalytics");
+    await analysis.save();
+    console.log(
+      `[BG] Tracking images uploaded to Cloudinary for analysis ${analysis._id}`,
+    );
+  }
+}
+
+/**
+ * @desc    Auto-create tracker analytics from CV pipeline output
  * @route   POST /api/videos/:id/tracker-analytics
  * @access  Private (Academy/Admin)
  */
@@ -768,6 +957,33 @@ const upsertTrackerAnalytics = async (req, res) => {
     video.processingError = null;
     await video.save();
 
+    // Kick off Cloudinary uploads in the background — don't block the response
+    setImmediate(async () => {
+      try {
+        if (annotatedVideoUrl) {
+          const cdnUrl = await uploadAnnotatedVideoToCloudinary(video);
+          if (cdnUrl)
+            console.log(`[BG] Annotated video → Cloudinary: ${cdnUrl}`);
+        }
+      } catch (err) {
+        console.error(
+          "[BG] Annotated video Cloudinary upload failed:",
+          err.message,
+        );
+      }
+
+      try {
+        const freshAnalysis = await DrillAnalysis.findOne({ video: video._id });
+        if (freshAnalysis)
+          await uploadTrackingImagesToCloudinary(freshAnalysis);
+      } catch (err) {
+        console.error(
+          "[BG] Tracking images Cloudinary upload failed:",
+          err.message,
+        );
+      }
+    });
+
     res.status(200).json({
       success: true,
       message: "Tracker analytics auto-created successfully",
@@ -790,7 +1006,7 @@ const upsertTrackerAnalytics = async (req, res) => {
 
 /**
  * @desc    Get tracker analytics review data (HITL mapping dashboard)
- * @route   GET /api/videos/:id/tracker-analytics/review
+ * @route   GET /api/analysis/review/:id
  * @access  Private (Academy/Admin)
  */
 const getTrackerAnalyticsReview = async (req, res) => {
@@ -805,15 +1021,11 @@ const getTrackerAnalyticsReview = async (req, res) => {
         .json({ success: false, message: "Video not found" });
     }
 
-    let academyId = null;
     if (req.user.role === "academy") {
-      const academy = await Academy.findOne({ user: req.user._id });
-      if (!academy) {
-        return res
-          .status(403)
-          .json({ success: false, message: "Academy not found" });
+      const access = await assertAcademyCanAccessVideo(video, req.user._id);
+      if (access.error) {
+        return res.status(403).json({ success: false, message: access.error });
       }
-      academyId = academy._id;
     }
 
     const analysis = await DrillAnalysis.findOne({ video: video._id }).populate(
@@ -821,8 +1033,13 @@ const getTrackerAnalyticsReview = async (req, res) => {
       "fullName jerseyNumber position profileImageUrl",
     );
 
-    const roster = academyId
-      ? await Player.find({ academy: academyId, status: "active" }).select(
+    const academy =
+      req.user.role === "academy"
+        ? await Academy.findOne({ user: req.user._id })
+        : null;
+
+    const roster = academy
+      ? await Player.find({ academy: academy._id }).select(
           "fullName jerseyNumber position profileImageUrl",
         )
       : [];
@@ -851,7 +1068,7 @@ const getTrackerAnalyticsReview = async (req, res) => {
         drillId: analysis?.drillId || null,
         annotatedVideoUrl: video.annotatedVideoUrl || null,
         trackingData: trackingRows,
-        analytics: trackingRows, // backward compatibility
+        analytics: trackingRows,
         roster,
       },
     });
@@ -886,11 +1103,7 @@ const assignTrackerAnalytics = async (req, res) => {
       ? req.body.assignments
       : [];
 
-    await applyTrackerAssignments({
-      video,
-      assignments,
-      userId: req.user._id,
-    });
+    await applyTrackerAssignments({ video, assignments, userId: req.user._id });
 
     res.status(200).json({
       success: true,
@@ -905,6 +1118,11 @@ const assignTrackerAnalytics = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Batch-verify tracker-to-player assignments
+ * @route   POST /api/analysis/verify-batch
+ * @access  Private (Academy/Admin)
+ */
 const verifyTrackerAnalyticsBatch = async (req, res) => {
   try {
     const { videoId, assignments } = req.body || {};
@@ -930,10 +1148,9 @@ const verifyTrackerAnalyticsBatch = async (req, res) => {
 
     await applyTrackerAssignments({ video, assignments, userId: req.user._id });
 
-    res.status(200).json({
-      success: true,
-      message: "Metrics verified and published",
-    });
+    res
+      .status(200)
+      .json({ success: true, message: "Metrics verified and published" });
   } catch (error) {
     console.error("Verify tracker analytics batch error:", error);
     res.status(error.statusCode || 500).json({
@@ -951,7 +1168,6 @@ const verifyTrackerAnalyticsBatch = async (req, res) => {
 const updateAnalysisStatus = async (req, res) => {
   try {
     const { analysisStatus } = req.body;
-
     const validStatuses = [
       "UPLOADING",
       "QUEUED",
@@ -974,7 +1190,6 @@ const updateAnalysisStatus = async (req, res) => {
         .json({ success: false, message: "Video not found" });
     }
 
-    // Map analysisStatus to processingStatus where applicable
     if (
       analysisStatus === "TRACKING_OBJECTS" ||
       analysisStatus === "GENERATING_METRICS"
@@ -1033,6 +1248,69 @@ const getAnalysisStatus = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Upload the annotated video to Cloudinary for browser playback
+ * @route   POST /api/analysis/convert-video/:id
+ * @access  Private (Academy/Admin)
+ */
+const convertAnnotatedVideo = async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id);
+    if (!video) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Video not found" });
+    }
+
+    if (req.user.role === "academy") {
+      const access = await assertAcademyCanAccessVideo(video, req.user._id);
+      if (access.error) {
+        return res.status(403).json({ success: false, message: access.error });
+      }
+    }
+
+    if (!video.annotatedVideoUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "No annotated video URL on this video",
+      });
+    }
+
+    if (
+      video.annotatedVideoUrl.includes("cloudinary.com") &&
+      video.annotatedVideoUrl.includes("vc_h264")
+    ) {
+      return res.json({
+        success: true,
+        message: "Video is already hosted on Cloudinary as H.264",
+        data: { annotatedVideoUrl: video.annotatedVideoUrl },
+      });
+    }
+
+    const cdnUrl = await uploadAnnotatedVideoToCloudinary(video);
+    if (!cdnUrl) {
+      return res.status(422).json({
+        success: false,
+        message:
+          "Cannot reach the video file from this server. " +
+          "Ensure BACKEND_PUBLIC_DIR is set so the CV pipeline publishes the file here, " +
+          "or re-run the CV pipeline.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Annotated video uploaded to Cloudinary",
+      data: { annotatedVideoUrl: cdnUrl },
+    });
+  } catch (error) {
+    console.error("Upload annotated video to Cloudinary error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: error.message || "Upload failed" });
+  }
+};
+
 module.exports = {
   getVideos,
   getVideo,
@@ -1045,6 +1323,7 @@ module.exports = {
   getTrackerAnalyticsReview,
   assignTrackerAnalytics,
   verifyTrackerAnalyticsBatch,
+  convertAnnotatedVideo,
   getVideoFeed,
   incrementVideoView,
   getAnalysisStatus,

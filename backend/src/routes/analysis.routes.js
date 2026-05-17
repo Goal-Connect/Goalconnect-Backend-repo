@@ -6,6 +6,7 @@ const { authorize, requireApproved } = require("../middleware/role.middleware");
 const {
   getTrackerAnalyticsReview,
   verifyTrackerAnalyticsBatch,
+  convertAnnotatedVideo,
 } = require("../controllers/video.controller");
 
 router.get(
@@ -22,6 +23,14 @@ router.post(
   authorize("academy", "admin"),
   requireApproved,
   verifyTrackerAnalyticsBatch,
+);
+
+router.post(
+  "/convert-video/:id",
+  protect,
+  authorize("academy", "admin"),
+  requireApproved,
+  convertAnnotatedVideo,
 );
 
 module.exports = router;

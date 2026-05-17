@@ -9,11 +9,9 @@
  * 4. POST tracker analytics back to POST /api/videos/:id/tracker-analytics
  */
 
-const CV_SERVICE_URL =
-  process.env.CV_SERVICE_URL || "http://localhost:5001";
+const CV_SERVICE_URL = process.env.CV_SERVICE_URL || "http://localhost:5001";
 
-const CV_SHARED_SECRET =
-  process.env.CV_SHARED_SECRET || "gc-cv-secret-key";
+const CV_SHARED_SECRET = process.env.CV_SHARED_SECRET || "gc-cv-secret-key";
 
 /**
  * Fire-and-forget trigger. Errors are logged but never thrown so the

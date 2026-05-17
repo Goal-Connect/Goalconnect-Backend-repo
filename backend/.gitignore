@@ -24,6 +24,7 @@ coverage/
 # Build output
 dist/
 build/
+public/
 
 # IDE
 .idea/
