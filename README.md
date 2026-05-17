@@ -68,6 +68,11 @@ JWT_EXPIRES_IN=7d
 # Frontend URL used in email links
 FRONTEND_URL=http://localhost:5173
 
+# Optional browser origins allowed by REST CORS and Socket.IO CORS
+# FRONTEND_URLS=https://app.example.com,https://staging.example.com
+# BACKEND_URL=https://goalconnect-backend-repo-2.onrender.com
+# RENDER_EXTERNAL_URL is also honored automatically when present on Render
+
 # Email (SMTP) settings — dev: Mailtrap, prod: SendGrid/SES
 EMAIL_SERVICE=                  # optional (e.g. SendGrid)
 EMAIL_HOST=smtp.mailtrap.io
