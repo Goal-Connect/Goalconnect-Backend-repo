@@ -298,11 +298,48 @@ const sendPlayerAccountCreationEmail = async (toEmail, playerName, academyName, 
   });
 };
 
+/**
+ * Send account approval notification (academy or scout)
+ * @param {string} toEmail Recipient email
+ * @param {string} role 'academy'|'scout'
+ * @param {string} name Optional display name (academy name or scout fullName)
+ */
+const sendAccountApprovedEmail = async (toEmail, role, name) => {
+  const title = role === 'academy' ? 'Your Academy Has Been Approved' : 'Your Scout Account Has Been Approved';
+  const body = role === 'academy' ? `
+    <h2>Academy Approved</h2>
+    <p>Congratulations${name ? ` — <strong>${name}</strong>` : ''}!</p>
+    <p>Your academy account on <strong>GoalConnect</strong> has been approved by an administrator. You can now add players and manage your academy profile.</p>
+    <div style="text-align:center; margin-top:20px;"><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" class="btn">Go to Dashboard</a></div>
+    <hr class="divider"/>
+    <p class="note">If you have any questions, contact support.</p>
+  ` : `
+    <h2>Scout Account Approved</h2>
+    <p>Good news${name ? `, <strong>${name}</strong>` : ''}!</p>
+    <p>Your scout account on <strong>GoalConnect</strong> has been approved by an administrator. You can now log in and start scouting players.</p>
+    <div style="text-align:center; margin-top:20px;"><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" class="btn">Go to Dashboard</a></div>
+    <hr class="divider"/>
+    <p class="note">If you have any questions, contact support.</p>
+  `;
+
+  const html = baseTemplate(title, body);
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from: `"${FROM_NAME}" <${FROM_ADDRESS}>`,
+    to: toEmail,
+    subject: `✅ ${title} — GoalConnect`,
+    html,
+    text: `${title}\n\nVisit: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`,
+  });
+};
+
 module.exports = { 
   sendVerificationEmail, 
   sendPasswordResetEmail, 
   sendPasswordResetSuccessEmail,
   sendWelcomeEmail,
   sendLoginAlertEmail,
-  sendPlayerAccountCreationEmail
+  sendPlayerAccountCreationEmail,
+  sendAccountApprovedEmail,
 };
+
