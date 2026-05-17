@@ -3,6 +3,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const swaggerUi = require("swagger-ui-express");
+const path = require("path");
 
 const swaggerSpec = require("./config/swagger");
 
@@ -53,6 +54,10 @@ if (process.env.NODE_ENV === "development") {
 } else {
   app.use(morgan("combined"));
 }
+
+// Static file serving for tracker thumbnails and uploads
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/public", express.static(path.join(__dirname, "../public")));
 
 // API routes
 app.use("/api", routes);

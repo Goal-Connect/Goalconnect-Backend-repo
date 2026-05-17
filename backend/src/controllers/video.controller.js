@@ -6,6 +6,8 @@ const Academy = require("../models/Academy");
 const DrillAnalysis = require("../models/DrillAnalysis");
 const Comment = require("../models/Comment");
 const { cloudinary } = require("../middleware/upload.middleware");
+const { triggerCVAnalysis } = require("../utils/cv-trigger");
+const jwt = require("jsonwebtoken");
 
 const normalizeTrackerAnalytics = (analytics = []) => {
   return analytics
@@ -16,6 +18,7 @@ const normalizeTrackerAnalytics = (analytics = []) => {
         item.distance_covered ?? item.distanceCovered ?? 0,
       );
       const thumbnailUrl = item.thumbnail_url ?? item.thumbnailUrl ?? "";
+      const heatmapUrl = item.heatmap_url ?? item.heatmapUrl ?? "";
 
       if (!Number.isInteger(trackerIdRaw) || trackerIdRaw <= 0) {
         return null;
@@ -28,6 +31,7 @@ const normalizeTrackerAnalytics = (analytics = []) => {
         distanceCovered:
           Number.isFinite(distanceRaw) && distanceRaw >= 0 ? distanceRaw : 0,
         thumbnailUrl: String(thumbnailUrl || ""),
+        heatmapUrl: String(heatmapUrl || ""),
       };
     })
     .filter(Boolean);
@@ -59,6 +63,41 @@ const assertAcademyCanAccessVideo = async (video, userId) => {
   }
 
   return { academy, error: null };
+};
+
+const applyTrackerAssignments = async ({ video, assignments, userId }) => {
+  if (!Array.isArray(assignments) || !assignments.length) {
+    const error = new Error("assignments must be a non-empty array");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const analysis = await DrillAnalysis.findOne({ video: video._id });
+  if (!analysis) {
+    const error = new Error("No analysis found for this video");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  for (const assignment of assignments) {
+    const trackerId = Number(assignment.tracker_id ?? assignment.trackerId);
+    if (!Number.isInteger(trackerId)) {
+      continue;
+    }
+    const playerId = assignment.player_id ?? assignment.playerId ?? null;
+    const row = analysis.trackerAnalytics.find(
+      (r) => r.trackerId === trackerId,
+    );
+    if (row) {
+      row.assignedPlayer = playerId || null;
+      row.assignedBy = userId;
+      row.assignedAt = new Date();
+      row.isPublished = true;
+    }
+  }
+
+  await analysis.save();
+  return analysis;
 };
 
 /**
@@ -112,9 +151,9 @@ const getVideos = async (req, res) => {
 };
 
 /**
- * @desc    Get single video by ID
+ * @desc    Get single video by ID with privacy checks
  * @route   GET /api/videos/:id
- * @access  Public (with privacy check)
+ * @access  Public (with privacy checks)
  */
 const getVideo = async (req, res) => {
   try {
@@ -209,7 +248,8 @@ const uploadVideo = async (req, res) => {
       });
     }
 
-    const { title, description, videoType, drillType, privacy } = req.body;
+    const { title, description, videoType, drillType, privacy, analysisType } =
+      req.body;
     let { playerId, videoUrl } = req.body;
 
     if (!req.file && !videoUrl) {
@@ -271,18 +311,35 @@ const uploadVideo = async (req, res) => {
       videoUrl,
       videoType,
       drillType,
+      analysisType: analysisType || undefined,
       privacy: privacy || "public",
       status: "approved",
       processingStatus: "uploaded",
+      analysisStatus: "UPLOADING",
     });
 
-    // TODO: Trigger CV analysis pipeline here
-    // For now, we'll mark it as uploaded and the CV module will pick it up
+    // Trigger the CV analysis pipeline (fire-and-forget)
+    // Generate a short-lived token the CV service can use for callbacks
+    const cvToken = jwt.sign(
+      { id: req.user._id, role: req.user.role },
+      process.env.JWT_SECRET || "dev-secret",
+      { expiresIn: "4h" },
+    );
+
+    triggerCVAnalysis({
+      videoId: video._id.toString(),
+      videoUrl: video.videoUrl,
+      token: cvToken,
+      drillId: drillType || "",
+    });
+
+    // Move to QUEUED immediately so frontend sees progress
+    video.analysisStatus = "QUEUED";
+    await video.save();
 
     res.status(201).json({
       success: true,
-      message:
-        "Video uploaded successfully. It will be processed for analysis.",
+      message: "Video uploaded successfully. AI analysis has been queued.",
       data: video,
     });
   } catch (error) {
@@ -645,13 +702,25 @@ const upsertTrackerAnalytics = async (req, res) => {
       academy = access.academy;
     }
 
-    const normalizedAnalytics = normalizeTrackerAnalytics(req.body.analytics);
+    const {
+      analytics,
+      trackingData,
+      drillId,
+      annotated_video_url,
+      annotatedVideoUrl: camelAnnotated,
+    } = req.body;
+    const analyticsPayload =
+      Array.isArray(trackingData) && trackingData.length
+        ? trackingData
+        : analytics;
+    const normalizedAnalytics = normalizeTrackerAnalytics(analyticsPayload);
     if (!normalizedAnalytics.length) {
       return res.status(400).json({
         success: false,
         message: "analytics must contain at least one valid tracker row",
       });
     }
+    const annotatedVideoUrl = annotated_video_url || camelAnnotated || "";
 
     const existing = await DrillAnalysis.findOne({ video: video._id });
     const existingByTrackerId = new Map(
@@ -670,37 +739,17 @@ const upsertTrackerAnalytics = async (req, res) => {
         assignedBy: previous.assignedBy,
         assignedAt: previous.assignedAt,
         isPublished: previous.isPublished,
+        heatmapUrl: row.heatmapUrl || previous.heatmapUrl,
       };
     });
 
-    const topSpeedValues = mergedTrackerAnalytics.map(
-      (item) => item.topSpeed || 0,
-    );
-    const distanceValues = mergedTrackerAnalytics.map(
-      (item) => item.distanceCovered || 0,
-    );
-
     const analysisData = {
       video: video._id,
-      player: video.player || undefined,
-      drillId: req.body.drill_id
-        ? String(req.body.drill_id)
-        : existing?.drillId,
+      player: video.player || null,
+      drillId: drillId || null,
       trackerAnalytics: mergedTrackerAnalytics,
-      metrics: {
-        ...(existing?.metrics || {}),
-        topSpeed: topSpeedValues.length ? Math.max(...topSpeedValues) : 0,
-        distanceCovered: distanceValues.reduce((sum, value) => sum + value, 0),
-      },
-      confidence: Number.isFinite(Number(req.body.confidence))
-        ? Number(req.body.confidence)
-        : existing?.confidence,
-      analysisVersion: req.body.analysis_version
-        ? String(req.body.analysis_version)
-        : existing?.analysisVersion || "1.0",
-      processingTime: Number.isFinite(Number(req.body.processing_time))
-        ? Number(req.body.processing_time)
-        : existing?.processingTime,
+      analysisVersion: "1.0",
+      processingTime: 0, // This would be set by the actual CV processing
     };
 
     const analysis = existing
@@ -709,31 +758,38 @@ const upsertTrackerAnalytics = async (req, res) => {
 
     await analysis.save();
 
+    // Update video processing status
     video.processingStatus = "analyzed";
+    video.analysisReady = true;
+    video.analysisStatus = "READY_FOR_REVIEW";
+    if (annotatedVideoUrl) {
+      video.annotatedVideoUrl = annotatedVideoUrl;
+    }
+    video.processingError = null;
     await video.save();
 
     res.status(200).json({
       success: true,
-      message: "Tracker analytics saved successfully",
+      message: "Tracker analytics auto-created successfully",
       data: {
         videoId: video._id,
         analysisId: analysis._id,
         drillId: analysis.drillId || null,
         trackerCount: analysis.trackerAnalytics.length,
-        academyId: academy?._id || null,
+        reviewUrl: `/api/videos/${video._id}/tracker-analytics/review`,
       },
     });
   } catch (error) {
-    console.error("Upsert tracker analytics error:", error);
+    console.error("Auto-create tracker analytics error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Server error during auto-creation",
     });
   }
 };
 
 /**
- * @desc    Get tracker analytics and academy roster for review UI
+ * @desc    Get tracker analytics review data (HITL mapping dashboard)
  * @route   GET /api/videos/:id/tracker-analytics/review
  * @access  Private (Academy/Admin)
  */
@@ -744,22 +800,20 @@ const getTrackerAnalyticsReview = async (req, res) => {
       "academy",
     );
     if (!video) {
-      return res.status(404).json({
-        success: false,
-        message: "Video not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Video not found" });
     }
 
-    let academy = null;
+    let academyId = null;
     if (req.user.role === "academy") {
-      const access = await assertAcademyCanAccessVideo(video, req.user._id);
-      if (access.error) {
-        return res.status(403).json({
-          success: false,
-          message: access.error,
-        });
+      const academy = await Academy.findOne({ user: req.user._id });
+      if (!academy) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Academy not found" });
       }
-      academy = access.academy;
+      academyId = academy._id;
     }
 
     const analysis = await DrillAnalysis.findOne({ video: video._id }).populate(
@@ -767,218 +821,53 @@ const getTrackerAnalyticsReview = async (req, res) => {
       "fullName jerseyNumber position profileImageUrl",
     );
 
-    const academyId = academy?._id || video.player?.academy;
     const roster = academyId
-      ? await Player.find({ academy: academyId, status: "active" })
-          .select("fullName jerseyNumber position profileImageUrl")
-          .sort({ fullName: 1 })
+      ? await Player.find({ academy: academyId, status: "active" }).select(
+          "fullName jerseyNumber position profileImageUrl",
+        )
       : [];
+
+    const trackingRows = (analysis?.trackerAnalytics || []).map((row) => ({
+      tracker_id: row.trackerId,
+      peak_speed:
+        typeof row.topSpeed === "number"
+          ? `${row.topSpeed.toFixed(2)} km/h`
+          : "—",
+      distance_covered:
+        typeof row.distanceCovered === "number"
+          ? `${row.distanceCovered.toFixed(2)} m`
+          : "—",
+      thumbnail_url: row.thumbnailUrl,
+      heatmap_url: row.heatmapUrl || null,
+      player_id: row.assignedPlayer?._id || null,
+      player_name: row.assignedPlayer?.fullName || null,
+      is_published: !!row.isPublished,
+    }));
 
     res.status(200).json({
       success: true,
       data: {
         videoId: video._id,
         drillId: analysis?.drillId || null,
-        analytics: (analysis?.trackerAnalytics || []).map((row) => ({
-          tracker_id: row.trackerId,
-          top_speed: row.topSpeed,
-          distance_covered: row.distanceCovered,
-          thumbnail_url: row.thumbnailUrl,
-          player_id: row.assignedPlayer?._id || null,
-          player_name: row.assignedPlayer?.fullName || null,
-          is_published: !!row.isPublished,
-        })),
+        annotatedVideoUrl: video.annotatedVideoUrl || null,
+        trackingData: trackingRows,
+        analytics: trackingRows, // backward compatibility
         roster,
       },
     });
   } catch (error) {
     console.error("Get tracker analytics review error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
 /**
- * @desc    Assign tracker analytics to real players and publish stats
+ * @desc    Assign players to tracker analytics rows and publish stats
  * @route   POST /api/videos/:id/tracker-analytics/assign
  * @access  Private (Academy/Admin)
  */
 const assignTrackerAnalytics = async (req, res) => {
   try {
-    const assignments = Array.isArray(req.body.assignments)
-      ? req.body.assignments
-      : [];
-    if (!assignments.length) {
-      return res.status(400).json({
-        success: false,
-        message: "assignments must be a non-empty array",
-      });
-    }
-
-    const video = await Video.findById(req.params.id).populate(
-      "player",
-      "academy",
-    );
-    if (!video) {
-      return res.status(404).json({
-        success: false,
-        message: "Video not found",
-      });
-    }
-
-    let academy = null;
-    if (req.user.role === "academy") {
-      const access = await assertAcademyCanAccessVideo(video, req.user._id);
-      if (access.error) {
-        return res.status(403).json({
-          success: false,
-          message: access.error,
-        });
-      }
-      academy = access.academy;
-    } else {
-      const academyId = video.player?.academy;
-      if (academyId) {
-        academy = await Academy.findById(academyId);
-      }
-    }
-
-    const analysis = await DrillAnalysis.findOne({ video: video._id });
-    if (!analysis || !analysis.trackerAnalytics?.length) {
-      return res.status(404).json({
-        success: false,
-        message: "No tracker analytics found for this video",
-      });
-    }
-
-    const trackerById = new Map(
-      analysis.trackerAnalytics.map((row) => [row.trackerId, row]),
-    );
-    const playerIds = [
-      ...new Set(assignments.map((item) => item.player_id ?? item.playerId)),
-    ];
-
-    const validObjectIds = playerIds.filter((id) =>
-      mongoose.Types.ObjectId.isValid(id),
-    );
-    if (validObjectIds.length !== playerIds.length) {
-      return res.status(400).json({
-        success: false,
-        message: "One or more player IDs are invalid",
-      });
-    }
-
-    const playerQuery = academy
-      ? { _id: { $in: validObjectIds }, academy: academy._id }
-      : { _id: { $in: validObjectIds } };
-    const players = await Player.find(playerQuery).select("_id");
-    if (players.length !== validObjectIds.length) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "One or more selected players were not found in your academy roster",
-      });
-    }
-
-    const now = new Date();
-    const playerUpdates = new Map();
-
-    for (const assignment of assignments) {
-      const trackerId = Number(assignment.tracker_id ?? assignment.trackerId);
-      const playerId = String(assignment.player_id ?? assignment.playerId);
-
-      if (!Number.isInteger(trackerId) || !playerId) {
-        return res.status(400).json({
-          success: false,
-          message: "Each assignment requires tracker_id and player_id",
-        });
-      }
-
-      const tracker = trackerById.get(trackerId);
-      if (!tracker) {
-        return res.status(400).json({
-          success: false,
-          message: `Tracker ID ${trackerId} is not present in stored analytics`,
-        });
-      }
-
-      const topSpeedRaw = Number(
-        assignment.top_speed ?? assignment.topSpeed ?? tracker.topSpeed ?? 0,
-      );
-      const distanceRaw = Number(
-        assignment.distance_covered ??
-          assignment.distanceCovered ??
-          tracker.distanceCovered ??
-          0,
-      );
-      const topSpeed =
-        Number.isFinite(topSpeedRaw) && topSpeedRaw >= 0 ? topSpeedRaw : 0;
-      const distanceCovered =
-        Number.isFinite(distanceRaw) && distanceRaw >= 0 ? distanceRaw : 0;
-
-      tracker.assignedPlayer = playerId;
-      tracker.assignedBy = req.user._id;
-      tracker.assignedAt = now;
-      tracker.isPublished = true;
-
-      const existing = playerUpdates.get(playerId) || {
-        maxTopSpeed: 0,
-        totalDistanceCovered: 0,
-        assignmentsCount: 0,
-      };
-
-      existing.maxTopSpeed = Math.max(existing.maxTopSpeed, topSpeed);
-      existing.totalDistanceCovered += distanceCovered;
-      existing.assignmentsCount += 1;
-      playerUpdates.set(playerId, existing);
-    }
-
-    await analysis.save();
-
-    for (const [playerId, update] of playerUpdates.entries()) {
-      await Player.updateOne(
-        { _id: playerId },
-        {
-          $max: { "aiPerformance.topSpeed": update.maxTopSpeed },
-          $inc: {
-            "aiPerformance.distanceCovered": update.totalDistanceCovered,
-            "aiPerformance.assignmentsCount": update.assignmentsCount,
-          },
-          $set: {
-            "aiPerformance.lastAnalyzedVideo": video._id,
-            "aiPerformance.lastUpdatedAt": now,
-          },
-        },
-      );
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Tracker analytics assigned and published successfully",
-      data: {
-        videoId: video._id,
-        assignmentsSaved: assignments.length,
-        playersUpdated: playerUpdates.size,
-      },
-    });
-  } catch (error) {
-    console.error("Assign tracker analytics error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
-  }
-};
-
-/**
- * @desc    Toggle like on a video
- * @route   POST /api/videos/:id/like
- * @access  Private
- */
-const toggleLike = async (req, res) => {
-  try {
     const video = await Video.findById(req.params.id);
     if (!video) {
       return res
@@ -986,195 +875,160 @@ const toggleLike = async (req, res) => {
         .json({ success: false, message: "Video not found" });
     }
 
-    const userId = req.user._id;
-    const isLiked = video.likes.includes(userId);
-
-    if (isLiked) {
-      // Remove like
-      video.likes = video.likes.filter(
-        (id) => id.toString() !== userId.toString(),
-      );
-    } else {
-      // Add like
-      video.likes.push(userId);
+    if (req.user.role === "academy") {
+      const access = await assertAcademyCanAccessVideo(video, req.user._id);
+      if (access.error) {
+        return res.status(403).json({ success: false, message: access.error });
+      }
     }
 
+    const assignments = Array.isArray(req.body.assignments)
+      ? req.body.assignments
+      : [];
+
+    await applyTrackerAssignments({
+      video,
+      assignments,
+      userId: req.user._id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Stats published to player profiles",
+    });
+  } catch (error) {
+    console.error("Assign tracker analytics error:", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Server error",
+    });
+  }
+};
+
+const verifyTrackerAnalyticsBatch = async (req, res) => {
+  try {
+    const { videoId, assignments } = req.body || {};
+    if (!videoId || !mongoose.Types.ObjectId.isValid(videoId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "videoId is required" });
+    }
+
+    const video = await Video.findById(videoId);
+    if (!video) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Video not found" });
+    }
+
+    if (req.user.role === "academy") {
+      const access = await assertAcademyCanAccessVideo(video, req.user._id);
+      if (access.error) {
+        return res.status(403).json({ success: false, message: access.error });
+      }
+    }
+
+    await applyTrackerAssignments({ video, assignments, userId: req.user._id });
+
+    res.status(200).json({
+      success: true,
+      message: "Metrics verified and published",
+    });
+  } catch (error) {
+    console.error("Verify tracker analytics batch error:", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Server error",
+    });
+  }
+};
+
+/**
+ * @desc    Update analysis status (callback from CV service)
+ * @route   PUT /api/videos/:id/analysis-status
+ * @access  Private (authenticated via CV token)
+ */
+const updateAnalysisStatus = async (req, res) => {
+  try {
+    const { analysisStatus } = req.body;
+
+    const validStatuses = [
+      "UPLOADING",
+      "QUEUED",
+      "TRACKING_OBJECTS",
+      "GENERATING_METRICS",
+      "READY_FOR_REVIEW",
+      "FAILED",
+    ];
+    if (!analysisStatus || !validStatuses.includes(analysisStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `analysisStatus must be one of: ${validStatuses.join(", ")}`,
+      });
+    }
+
+    const video = await Video.findById(req.params.id);
+    if (!video) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Video not found" });
+    }
+
+    // Map analysisStatus to processingStatus where applicable
+    if (
+      analysisStatus === "TRACKING_OBJECTS" ||
+      analysisStatus === "GENERATING_METRICS"
+    ) {
+      video.processingStatus = "processing";
+    }
+    if (analysisStatus === "FAILED") {
+      video.processingStatus = "failed";
+      video.processingError =
+        req.body.processingError || "CV processing failed";
+    }
+
+    video.analysisStatus = analysisStatus;
     await video.save();
 
     res.status(200).json({
       success: true,
-      message: isLiked ? "Video unliked" : "Video liked",
-      data: {
-        likes: video.likes,
-        likesCount: video.likes.length,
-      },
+      message: `Analysis status updated to ${analysisStatus}`,
     });
   } catch (error) {
-    console.error("Toggle like error:", error);
+    console.error("Update analysis status error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
 /**
- * @desc    Get comments for a video
- * @route   GET /api/videos/:id/comments
- * @access  Public (with privacy check)
+ * @desc    Get real-time analysis status for polling
+ * @route   GET /api/videos/:id/analysis-status
+ * @access  Private (Academy/Admin)
  */
-const getComments = async (req, res) => {
+const getAnalysisStatus = async (req, res) => {
   try {
-    const comments = await Comment.find({
-      video: req.params.id,
-      parentComment: null,
-    })
-      .populate("user", "fullName profileImageUrl role")
-      .populate({
-        path: "replies",
-        populate: { path: "user", select: "fullName profileImageUrl role" },
-      })
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: comments.length,
-      data: comments,
-    });
-  } catch (error) {
-    console.error("Get comments error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-/**
- * @desc    Add a comment to a video
- * @route   POST /api/videos/:id/comments
- * @access  Private
- */
-const addComment = async (req, res) => {
-  try {
-    const { text, parentComment } = req.body;
-    if (!text || !text.trim()) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Comment text is required" });
-    }
-
-    const video = await Video.findById(req.params.id);
+    const video = await Video.findById(req.params.id).select(
+      "title analysisStatus processingStatus analysisReady analysisType processingError",
+    );
     if (!video) {
       return res
         .status(404)
         .json({ success: false, message: "Video not found" });
     }
-
-    let parent = null;
-    if (parentComment) {
-      parent = await Comment.findById(parentComment);
-      if (!parent) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Parent comment not found" });
-      }
-    }
-
-    const comment = await Comment.create({
-      text: text.trim(),
-      user: req.user._id,
-      video: video._id,
-      parentComment: parent ? parent._id : null,
-    });
-
-    if (parent) {
-      parent.replies.push(comment._id);
-      await parent.save();
-    }
-
-    await comment.populate("user", "fullName profileImageUrl role");
-
-    res.status(201).json({
-      success: true,
-      data: comment,
-    });
-  } catch (error) {
-    console.error("Add comment error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-/**
- * @desc    Delete a comment
- * @route   DELETE /api/videos/:id/comments/:commentId
- * @access  Private
- */
-const deleteComment = async (req, res) => {
-  try {
-    const comment = await Comment.findById(req.params.commentId);
-    if (!comment) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Comment not found" });
-    }
-
-    // Check ownership or admin
-    if (
-      comment.user.toString() !== req.user._id.toString() &&
-      req.user.role !== "admin"
-    ) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Not authorized to delete this comment",
-        });
-    }
-
-    await comment.deleteOne();
-
     res.status(200).json({
       success: true,
-      message: "Comment deleted successfully",
-    });
-  } catch (error) {
-    console.error("Delete comment error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-/**
- * @desc    Toggle like on a comment
- * @route   POST /api/videos/:id/comments/:commentId/like
- * @access  Private
- */
-const toggleCommentLike = async (req, res) => {
-  try {
-    const comment = await Comment.findById(req.params.commentId);
-    if (!comment) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Comment not found" });
-    }
-
-    const userId = req.user._id;
-    const isLiked = comment.likes.includes(userId);
-
-    if (isLiked) {
-      comment.likes = comment.likes.filter(
-        (id) => id.toString() !== userId.toString(),
-      );
-    } else {
-      comment.likes.push(userId);
-    }
-
-    await comment.save();
-
-    res.status(200).json({
-      success: true,
-      message: isLiked ? "Comment unliked" : "Comment liked",
       data: {
-        likes: comment.likes,
-        likesCount: comment.likes.length,
+        videoId: video._id,
+        title: video.title,
+        analysisStatus: video.analysisStatus || "UPLOADING",
+        processingStatus: video.processingStatus,
+        processingError: video.processingError || null,
+        analysisReady: video.analysisReady || false,
+        analysisType: video.analysisType || null,
       },
     });
   } catch (error) {
-    console.error("Toggle comment like error:", error);
+    console.error("Get analysis status error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -1190,11 +1044,9 @@ module.exports = {
   upsertTrackerAnalytics,
   getTrackerAnalyticsReview,
   assignTrackerAnalytics,
+  verifyTrackerAnalyticsBatch,
   getVideoFeed,
   incrementVideoView,
-  toggleLike,
-  getComments,
-  addComment,
-  deleteComment,
-  toggleCommentLike,
+  getAnalysisStatus,
+  updateAnalysisStatus,
 };

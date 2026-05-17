@@ -93,6 +93,28 @@ const reportSchema = new mongoose.Schema(
       trim: true,
       maxlength: [1000, "Resolution cannot exceed 1000 characters"],
     },
+    reportType: {
+      type: String,
+      enum: ["VIDEO_VIOLATION", "AGE_VERIFICATION", "OTHER"],
+      default: "OTHER",
+    },
+    routedTo: {
+      type: String,
+      enum: ["admin", "academy"],
+      default: "admin",
+    },
+    routedToAcademy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Academy",
+    },
+    academyActionTaken: {
+      type: String,
+      enum: ["none", "deleted", "archived"],
+      default: "none",
+    },
+    academyReviewedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

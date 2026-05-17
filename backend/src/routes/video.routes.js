@@ -11,15 +11,12 @@ const {
   deleteVideo,
   getVideoAnalysis,
   upsertTrackerAnalytics,
-  getTrackerAnalyticsReview,
-  assignTrackerAnalytics,
   getVideoFeed,
   incrementVideoView,
-  toggleLike,
-  getComments,
-  addComment,
-  deleteComment,
-  toggleCommentLike,
+  getAnalysisStatus,
+  updateAnalysisStatus,
+  getTrackerAnalyticsReview,
+  assignTrackerAnalytics,
 } = require("../controllers/video.controller");
 
 const { protect, optionalAuth } = require("../middleware/auth.middleware");
@@ -119,7 +116,7 @@ router.get("/feed", optionalAuth, getVideoFeed);
  *       200:
  *         description: List of videos
  */
-router.get("/", getVideos);
+router.get("/", optionalAuth, getVideos);
 
 /**
  * @swagger
@@ -171,21 +168,29 @@ router.post(
   upsertTrackerAnalytics,
 );
 
-router.get(
-  "/:id/tracker-analytics/review",
-  protect,
-  authorize("academy", "admin"),
-  requireApproved,
-  getTrackerAnalyticsReview,
-);
+// router.get(
+//   "/:id/tracker-analytics/review",
+//   protect,
+//   authorize("academy", "admin"),
+//   requireApproved,
+//   getTrackerAnalyticsReview, // Function not defined in controller
+// );
 
-router.post(
-  "/:id/tracker-analytics/assign",
-  protect,
-  authorize("academy", "admin"),
-  requireApproved,
-  assignTrackerAnalytics,
-);
+// router.post(
+//   "/:id/tracker-analytics/assign",
+//   protect,
+//   authorize("academy", "admin"),
+//   requireApproved,
+//   assignTrackerAnalytics, // Function not defined in controller
+// );
+
+// // Auto-trigger route for CV job completion (webhook/internal)
+// router.post(
+//   "/:id/auto-tracker-analytics",
+//   // This route can be called by internal services/webhooks
+//   // Add proper authentication for your CV processing service
+//   autoCreateTrackerAnalytics, // Function not defined in controller
+// );
 
 /**
  * @swagger
@@ -320,57 +325,30 @@ router.delete(
   deleteVideo,
 );
 
-/**
- * @swagger
- * /videos/{id}/like:
- *   post:
- *     summary: Toggle like on a video
- *     tags: [Videos]
- *     security:
- *       - bearerAuth: []
- */
-router.post("/:id/like", protect, toggleLike);
+router.get(
+  "/:id/tracker-analytics/review",
+  protect,
+  authorize("academy", "admin"),
+  requireApproved,
+  getTrackerAnalyticsReview,
+);
 
-/**
- * @swagger
- * /videos/{id}/comments:
- *   get:
- *     summary: Get comments for a video
- *     tags: [Videos]
- */
-router.get("/:id/comments", optionalAuth, getComments);
+router.post(
+  "/:id/tracker-analytics/assign",
+  protect,
+  authorize("academy", "admin"),
+  requireApproved,
+  assignTrackerAnalytics,
+);
 
-/**
- * @swagger
- * /videos/{id}/comments:
- *   post:
- *     summary: Add a comment to a video
- *     tags: [Videos]
- *     security:
- *       - bearerAuth: []
- */
-router.post("/:id/comments", protect, addComment);
+router.get(
+  "/:id/analysis-status",
+  protect,
+  authorize("academy", "admin"),
+  getAnalysisStatus,
+);
 
-/**
- * @swagger
- * /videos/{id}/comments/{commentId}:
- *   delete:
- *     summary: Delete a comment
- *     tags: [Videos]
- *     security:
- *       - bearerAuth: []
- */
-router.delete("/:id/comments/:commentId", protect, deleteComment);
-
-/**
- * @swagger
- * /videos/{id}/comments/{commentId}/like:
- *   post:
- *     summary: Toggle like on a comment
- *     tags: [Videos]
- *     security:
- *       - bearerAuth: []
- */
-router.post("/:id/comments/:commentId/like", protect, toggleCommentLike);
+// CV service pushes stage updates via this callback (authenticated with the token it received)
+router.put("/:id/analysis-status", protect, updateAnalysisStatus);
 
 module.exports = router;

@@ -112,6 +112,10 @@ const drillAnalysisSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
+        heatmapUrl: {
+          type: String,
+          trim: true,
+        },
         assignedPlayer: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Player",

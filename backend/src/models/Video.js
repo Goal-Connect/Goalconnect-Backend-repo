@@ -1,46 +1,50 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const videoSchema = new mongoose.Schema(
   {
     player: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Player',
+      ref: "Player",
       // required: false now so academies can upload generic game videos
     },
     match: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Match',
+      ref: "Match",
     },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     title: {
       type: String,
-      required: [true, 'Video title is required'],
+      required: [true, "Video title is required"],
       trim: true,
-      maxlength: [100, 'Title cannot exceed 100 characters'],
+      maxlength: [100, "Title cannot exceed 100 characters"],
     },
     description: {
       type: String,
-      maxlength: [500, 'Description cannot exceed 500 characters'],
+      maxlength: [500, "Description cannot exceed 500 characters"],
     },
     videoUrl: {
       type: String,
-      required: [true, 'Video URL is required'],
+      required: [true, "Video URL is required"],
     },
     thumbnailUrl: {
       type: String,
     },
+    annotatedVideoUrl: {
+      type: String,
+      trim: true,
+    },
     videoType: {
       type: String,
-      enum: ['highlight', 'drill', 'match'],
-      required: [true, 'Video type is required'],
+      enum: ["highlight", "drill", "match"],
+      required: [true, "Video type is required"],
     },
     drillType: {
       type: String,
-      enum: ['dribbling', 'shooting', 'passing', 'speed', 'agility', 'other'],
+      enum: ["dribbling", "shooting", "passing", "speed", "agility", "other"],
     },
     duration: {
       type: Number, // in seconds
@@ -50,21 +54,37 @@ const videoSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'approved',
+      enum: ["pending", "approved", "rejected"],
+      default: "approved",
     },
     processingStatus: {
       type: String,
-      enum: ['uploaded', 'processing', 'analyzed', 'failed'],
-      default: 'uploaded',
+      enum: ["uploaded", "processing", "analyzed", "failed"],
+      default: "uploaded",
+    },
+    analysisStatus: {
+      type: String,
+      enum: [
+        "UPLOADING",
+        "QUEUED",
+        "TRACKING_OBJECTS",
+        "GENERATING_METRICS",
+        "READY_FOR_REVIEW",
+        "FAILED",
+      ],
+      default: "UPLOADING",
+    },
+    analysisType: {
+      type: String,
+      enum: ["individual_drill", "match_footage"],
     },
     processingError: {
       type: String,
     },
     privacy: {
       type: String,
-      enum: ['public', 'scout_only', 'private'],
-      default: 'public',
+      enum: ["public", "scout_only", "private"],
+      default: "public",
     },
     views: {
       type: Number,
@@ -73,26 +93,26 @@ const videoSchema = new mongoose.Schema(
     likes: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: "User",
       },
     ],
     moderationNote: {
       type: String,
-      maxlength: [1000, 'Moderation note cannot exceed 1000 characters'],
+      maxlength: [1000, "Moderation note cannot exceed 1000 characters"],
     },
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Virtual for drill analysis
-videoSchema.virtual('analysis', {
-  ref: 'DrillAnalysis',
-  localField: '_id',
-  foreignField: 'video',
+videoSchema.virtual("analysis", {
+  ref: "DrillAnalysis",
+  localField: "_id",
+  foreignField: "video",
   justOne: true,
 });
 
@@ -106,7 +126,7 @@ videoSchema.methods.incrementViews = function () {
 videoSchema.index({ player: 1, createdAt: -1 });
 videoSchema.index({ videoType: 1 });
 videoSchema.index({ processingStatus: 1 });
+videoSchema.index({ analysisStatus: 1 });
 videoSchema.index({ status: 1 });
 
-module.exports = mongoose.model('Video', videoSchema);
-
+module.exports = mongoose.model("Video", videoSchema);

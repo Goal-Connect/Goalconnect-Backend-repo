@@ -12,6 +12,8 @@ const reportRoutes = require("./report.routes");
 const messageRoutes = require("./message.routes");
 const profileRoutes = require("./profile.routes");
 const notificationRoutes = require("./notification.routes");
+const academyModerationRoutes = require("./academy.moderation.routes");
+const analysisRoutes = require("./analysis.routes");
 
 // Mount routes
 router.use("/auth", authRoutes);
@@ -25,6 +27,8 @@ router.use("/reports", reportRoutes);
 router.use("/messages", messageRoutes);
 router.use("/profiles", profileRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/academy/moderation", academyModerationRoutes);
+router.use("/analysis", analysisRoutes);
 
 /**
  * @swagger
