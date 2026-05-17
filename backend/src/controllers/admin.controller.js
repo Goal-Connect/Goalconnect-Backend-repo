@@ -316,14 +316,39 @@ const approveScout = async (req, res) => {
       });
     }
 
-    // Update user status
+    // Check idempotency: if already approved, return success (preserve frontend expectations)
+    const linkedUser = await User.findById(scout.user).select('status email');
+    if (linkedUser && linkedUser.status === 'approved') {
+      return res.status(200).json({
+        success: true,
+        message: 'Scout approved successfully',
+      });
+    }
+
+    // Record approval metadata on Scout
+    scout.approvedAt = new Date();
+    scout.approvedBy = req.user._id;
+    await scout.save();
+
+    // Update user status (make sure change is persisted)
     await User.findByIdAndUpdate(scout.user, { status: 'approved' });
+
+    // Create an in-app notification for the scout
+    try {
+      await Notification.create({
+        userId: scout.user,
+        type: 'account_approved',
+        message: 'Your scout account has been approved by an administrator.',
+        metadata: { scoutId: scout._id },
+      });
+    } catch (notifErr) {
+      console.error('Notification creation error for scout approval:', notifErr.message);
+    }
 
     // Notify scout via email (non-blocking)
     try {
-      const user = await User.findById(scout.user);
-      if (user && user.email) {
-        sendAccountApprovedEmail(user.email, 'scout', scout.fullName).catch((err) =>
+      if (linkedUser && linkedUser.email) {
+        sendAccountApprovedEmail(linkedUser.email, 'scout', scout.fullName).catch((err) =>
           console.error('Failed to send scout approved email:', err.message)
         );
       }
