@@ -1,5 +1,17 @@
 const nodemailer = require('nodemailer');
 
+const normalizeEnvValue = (value) => {
+  if (value === undefined || value === null) return value;
+  const trimmed = String(value).trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+};
+
 /**
  * Create and return a nodemailer transporter.
  * In development, uses SMTP credentials from .env (Mailtrap recommended).
@@ -10,8 +22,8 @@ const createTransporter = () => {
     return nodemailer.createTransport({
       service: process.env.EMAIL_SERVICE,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: normalizeEnvValue(process.env.EMAIL_USER),
+        pass: normalizeEnvValue(process.env.EMAIL_PASS),
       },
     });
   }
@@ -20,14 +32,14 @@ const createTransporter = () => {
     port: parseInt(process.env.EMAIL_PORT || '587', 10),
     secure: process.env.EMAIL_SECURE === 'true',
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: normalizeEnvValue(process.env.EMAIL_USER),
+      pass: normalizeEnvValue(process.env.EMAIL_PASS),
     },
   });
 };
 
 const FROM_NAME = 'GoalConnect ⚽';
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'noreply@goalconnect.et';
+const FROM_ADDRESS = normalizeEnvValue(process.env.EMAIL_FROM) || 'noreply@goalconnect.et';
 
 // ─── HTML Email Templates ──────────────────────────────────────────────────
 
