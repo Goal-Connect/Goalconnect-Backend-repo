@@ -141,7 +141,7 @@ Emails are sent asynchronously and failures are logged — they don't block API 
 	- `message:edit`, `message:delete` — edit/delete operations (sender only).
 
 - Business rules enforced server-side:
-	- Only a `scout` may **start** a new conversation (server checks for existing conversation before allowing a different role to start).
+	- Any authenticated user may **start** a new conversation (server allows any role to initiate; existing conversations remain unchanged).
 	- Cannot message yourself.
 
 Messages are persisted to the `Message` model and the server serializes ObjectIds to strings before emitting to clients.

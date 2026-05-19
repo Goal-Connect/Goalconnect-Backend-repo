@@ -5,7 +5,7 @@ const User = require('../models/User');
 /**
  * @desc    Send a message (HTTP)
  * @route   POST /api/messages
- * @access  Private (scout starts, then scout/player can reply)
+ * @access  Private (authenticated users can start and reply)
  */
 const sendMessage = async (req, res) => {
   try {
@@ -47,15 +47,8 @@ const sendMessage = async (req, res) => {
       ],
     }).lean();
 
-    // Enforce rule: only a scout can start a new conversation, and only with a player
-    if (!existing) {
-      if (sender.role !== 'scout' || receiver.role !== 'player') {
-        return res.status(403).json({
-          success: false,
-          message: 'Only scouts can start a new conversation with players',
-        });
-      }
-    }
+    // No role restriction for starting conversations — allow any authenticated user
+    // to initiate a conversation (existing conversations remain unaffected).
 
     const message = await Message.create({
       senderId,
