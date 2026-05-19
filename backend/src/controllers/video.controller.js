@@ -643,6 +643,278 @@ const incrementVideoView = async (req, res) => {
 };
 
 /**
+ * @desc    Toggle like on a video
+ * @route   POST /api/videos/:id/like
+ * @access  Private
+ */
+const toggleVideoLike = async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: "Video not found",
+      });
+    }
+
+    const userId = req.user._id.toString();
+    const existingIndex = video.likes.findIndex(
+      (likeId) => likeId.toString() === userId,
+    );
+
+    let message;
+    if (existingIndex >= 0) {
+      video.likes.splice(existingIndex, 1);
+      message = "Video unliked";
+    } else {
+      video.likes.push(req.user._id);
+      message = "Video liked";
+    }
+
+    await video.save();
+
+    res.status(200).json({
+      success: true,
+      message,
+      data: {
+        likes: video.likes,
+        likesCount: video.likes.length,
+      },
+    });
+  } catch (error) {
+    console.error("Toggle video like error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+/**
+ * @desc    Get comments for a video
+ * @route   GET /api/videos/:id/comments
+ * @access  Private
+ */
+const getVideoComments = async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: "Video not found",
+      });
+    }
+
+    const comments = await Comment.find({
+      video: video._id,
+      parentComment: null,
+    })
+      .sort({ createdAt: 1 })
+      .populate("user", "fullName profileImageUrl role")
+      .populate({
+        path: "replies",
+        options: { sort: { createdAt: 1 } },
+        populate: {
+          path: "user",
+          select: "fullName profileImageUrl role",
+        },
+      });
+
+    res.status(200).json({
+      success: true,
+      count: comments.length,
+      data: comments,
+    });
+  } catch (error) {
+    console.error("Get video comments error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+/**
+ * @desc    Add a comment or reply to a video
+ * @route   POST /api/videos/:id/comments
+ * @access  Private
+ */
+const addVideoComment = async (req, res) => {
+  try {
+    const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
+    const parentCommentId = req.body.parentComment || null;
+
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        message: "Comment text is required",
+      });
+    }
+
+    const video = await Video.findById(req.params.id);
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: "Video not found",
+      });
+    }
+
+    let parentComment = null;
+    if (parentCommentId) {
+      parentComment = await Comment.findOne({
+        _id: parentCommentId,
+        video: video._id,
+      });
+
+      if (!parentComment) {
+        return res.status(404).json({
+          success: false,
+          message: "Parent comment not found",
+        });
+      }
+    }
+
+    const comment = await Comment.create({
+      text,
+      user: req.user._id,
+      video: video._id,
+      parentComment: parentComment ? parentComment._id : null,
+    });
+
+    if (parentComment) {
+      parentComment.replies.push(comment._id);
+      await parentComment.save();
+    }
+
+    const populatedComment = await Comment.findById(comment._id)
+      .populate("user", "fullName profileImageUrl role")
+      .populate({
+        path: "replies",
+        options: { sort: { createdAt: 1 } },
+        populate: {
+          path: "user",
+          select: "fullName profileImageUrl role",
+        },
+      });
+
+    res.status(201).json({
+      success: true,
+      data: populatedComment,
+    });
+  } catch (error) {
+    console.error("Add video comment error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+/**
+ * @desc    Delete a comment
+ * @route   DELETE /api/videos/:id/comments/:commentId
+ * @access  Private
+ */
+const deleteVideoComment = async (req, res) => {
+  try {
+    const comment = await Comment.findOne({
+      _id: req.params.commentId,
+      video: req.params.id,
+    });
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: "Comment not found",
+      });
+    }
+
+    const isOwner = comment.user.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete this comment",
+      });
+    }
+
+    if (comment.parentComment) {
+      await Comment.findByIdAndUpdate(comment.parentComment, {
+        $pull: { replies: comment._id },
+      });
+    }
+
+    await Comment.deleteOne({ _id: comment._id });
+
+    res.status(200).json({
+      success: true,
+      message: "Comment deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete video comment error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+/**
+ * @desc    Toggle like on a comment
+ * @route   POST /api/videos/:id/comments/:commentId/like
+ * @access  Private
+ */
+const toggleCommentLike = async (req, res) => {
+  try {
+    const comment = await Comment.findOne({
+      _id: req.params.commentId,
+      video: req.params.id,
+    });
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: "Comment not found",
+      });
+    }
+
+    const userId = req.user._id.toString();
+    const existingIndex = comment.likes.findIndex(
+      (likeId) => likeId.toString() === userId,
+    );
+
+    let message;
+    if (existingIndex >= 0) {
+      comment.likes.splice(existingIndex, 1);
+      message = "Comment unliked";
+    } else {
+      comment.likes.push(req.user._id);
+      message = "Comment liked";
+    }
+
+    await comment.save();
+
+    res.status(200).json({
+      success: true,
+      message,
+      data: {
+        likes: comment.likes,
+        likesCount: comment.likes.length,
+      },
+    });
+  } catch (error) {
+    console.error("Toggle comment like error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+/**
  * @desc    Get video analysis
  * @route   GET /api/videos/:id/analysis
  * @access  Public (with privacy check)
@@ -1326,6 +1598,11 @@ module.exports = {
   convertAnnotatedVideo,
   getVideoFeed,
   incrementVideoView,
+  toggleVideoLike,
+  getVideoComments,
+  addVideoComment,
+  deleteVideoComment,
+  toggleCommentLike,
   getAnalysisStatus,
   updateAnalysisStatus,
 };

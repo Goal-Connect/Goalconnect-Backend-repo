@@ -13,6 +13,11 @@ const {
   upsertTrackerAnalytics,
   getVideoFeed,
   incrementVideoView,
+  toggleVideoLike,
+  getVideoComments,
+  addVideoComment,
+  deleteVideoComment,
+  toggleCommentLike,
   getAnalysisStatus,
   updateAnalysisStatus,
   getTrackerAnalyticsReview,
@@ -211,6 +216,31 @@ router.post(
  *         description: Video not found
  */
 router.post("/:id/view", incrementVideoView);
+
+router.post("/:id/like", protect, requireApproved, toggleVideoLike);
+
+router.get("/:id/comments", optionalAuth, getVideoComments);
+
+router.post(
+  "/:id/comments",
+  protect,
+  requireApproved,
+  addVideoComment,
+);
+
+router.post(
+  "/:id/comments/:commentId/like",
+  protect,
+  requireApproved,
+  toggleCommentLike,
+);
+
+router.delete(
+  "/:id/comments/:commentId",
+  protect,
+  requireApproved,
+  deleteVideoComment,
+);
 
 /**
  * @swagger

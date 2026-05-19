@@ -1963,9 +1963,15 @@ paths:
       tags: [Videos]
       summary: Toggle like on a video
       description: |
-        If the current user **has not** liked the video, adds a like.
-        If they **have** liked it, removes the like (toggle).
-        Requires any authenticated user.
+        Toggles the current user's like state for a video.
+
+        - If the user has not liked the video yet, their User `_id` is appended to `Video.likes`.
+        - If they have already liked it, their User `_id` is removed from `Video.likes`.
+
+        This endpoint is safe to click repeatedly while testing the UI because it flips between
+        `Video liked` and `Video unliked`.
+
+        **Auth:** any authenticated user.
       security:
         - bearerAuth: []
       parameters:
@@ -1998,6 +2004,26 @@ paths:
                       likesCount:
                         type: integer
                         example: 14
+              examples:
+                liked:
+                  summary: User liked the video
+                  value:
+                    success: true
+                    message: Video liked
+                    data:
+                      likes:
+                        - 680df8bf8f0e823a9ca20e99
+                        - 681abc123def456789012345
+                      likesCount: 2
+                unliked:
+                  summary: User unliked the video
+                  value:
+                    success: true
+                    message: Video unliked
+                    data:
+                      likes:
+                        - 680df8bf8f0e823a9ca20e99
+                      likesCount: 1
         "401":
           description: Unauthorized
         "404":
@@ -2011,6 +2037,9 @@ paths:
         Returns all **top-level** comments (where `parentComment` is null).
         Each comment includes its `replies` array populated with reply objects.
         Results are sorted newest-first.
+
+        Use this endpoint first when testing the comment UI, then call the POST endpoint
+        to add a top-level comment or reply.
       parameters:
         - in: path
           name: id
@@ -2032,6 +2061,26 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Comment"
+              examples:
+                sample:
+                  summary: Example comment list response
+                  value:
+                    success: true
+                    count: 1
+                    data:
+                      - _id: 680df8bf8f0e823a9ca20e99
+                        text: Great footwork!
+                        user:
+                          _id: 681abc123def456789012345
+                          fullName: John Scout
+                          profileImageUrl: https://res.cloudinary.com/...
+                          role: scout
+                        video: 682abc123def456789012345
+                        likes:
+                          - 680df8bf8f0e823a9ca20e99
+                        parentComment: null
+                        replies: []
+                        createdAt: 2026-05-19T08:30:00.000Z
     post:
       tags: [Videos]
       summary: Add a comment or reply to a video
@@ -2041,7 +2090,10 @@ paths:
         To post a **reply**, include `parentComment` with the `_id` of the comment being replied to.
         The reply is automatically added to the parent's `replies` array.
 
-        Any authenticated user can comment.
+        **Auth:** any authenticated user.
+
+        If `parentComment` is omitted, a top-level comment is created.
+        If `parentComment` is present, the comment is created as a reply and linked back to the parent.
       security:
         - bearerAuth: []
       parameters:
@@ -2078,6 +2130,41 @@ paths:
                   success: { type: boolean, example: true }
                   data:
                     $ref: "#/components/schemas/Comment"
+              examples:
+                topLevel:
+                  summary: Created top-level comment
+                  value:
+                    success: true
+                    data:
+                      _id: 682abc123def456789012345
+                      text: Incredible technique, great future ahead!
+                      user:
+                        _id: 681abc123def456789012345
+                        fullName: John Scout
+                        profileImageUrl: https://res.cloudinary.com/...
+                        role: scout
+                      video: 680df8bf8f0e823a9ca20e99
+                      likes: []
+                      parentComment: null
+                      replies: []
+                      createdAt: 2026-05-19T08:30:00.000Z
+                reply:
+                  summary: Created reply
+                  value:
+                    success: true
+                    data:
+                      _id: 682abc123def456789012346
+                      text: Totally agree!
+                      user:
+                        _id: 681abc123def456789012345
+                        fullName: John Scout
+                        profileImageUrl: https://res.cloudinary.com/...
+                        role: scout
+                      video: 680df8bf8f0e823a9ca20e99
+                      likes: []
+                      parentComment: 680df8bf8f0e823a9ca20e99
+                      replies: []
+                      createdAt: 2026-05-19T08:31:00.000Z
         "400":
           description: Empty comment text or parent not found
         "401":
@@ -2127,8 +2214,14 @@ paths:
       tags: [Videos]
       summary: Toggle like on a comment
       description: |
-        Adds or removes the current user's like from a comment (toggle).
-        Returns the updated likes array and count.
+        Adds or removes the current user's like from a comment.
+
+        - If the user has not liked the comment yet, their User `_id` is added to `Comment.likes`.
+        - If they already liked it, their User `_id` is removed.
+
+        The response includes the updated `likes` array and `likesCount` for immediate UI updates.
+
+        **Auth:** any authenticated user.
       security:
         - bearerAuth: []
       parameters:
@@ -2167,6 +2260,26 @@ paths:
                       likesCount:
                         type: integer
                         example: 5
+              examples:
+                liked:
+                  summary: Comment liked
+                  value:
+                    success: true
+                    message: Comment liked
+                    data:
+                      likes:
+                        - 680df8bf8f0e823a9ca20e99
+                        - 681abc123def456789012345
+                      likesCount: 2
+                unliked:
+                  summary: Comment unliked
+                  value:
+                    success: true
+                    message: Comment unliked
+                    data:
+                      likes:
+                        - 680df8bf8f0e823a9ca20e99
+                      likesCount: 1
         "401":
           description: Unauthorized
         "404":
