@@ -122,12 +122,8 @@ const initSocket = (httpServer) => {
           ],
         }).lean();
 
-        // Enforce rule: only a scout can send the very first message
-        if (!existing && user.role !== 'scout') {
-          const error = 'Only scouts can start a new conversation';
-          if (callback) return callback({ success: false, error });
-          return;
-        }
+        // No role restriction for starting conversations via socket — allow any
+        // authenticated user to initiate a new conversation.
 
         let message = await Message.create({
           senderId,
